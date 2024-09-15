@@ -2,6 +2,7 @@
 
 import mongoose from 'mongoose';
 
+
 const perfilSchema = new mongoose.Schema({
   _id: {
     type: mongoose.Types.ObjectId,
@@ -30,12 +31,19 @@ const perfilSchema = new mongoose.Schema({
   },
   foto_perfil: {
     type: String,
-    default: null
+    default: '../public/uploads/profile-pictures/default/perfil.jpg'
   }
 }, {
   timestamps: true
 });
 
+// Función middleware para establecer la foto de perfil por defecto
+perfilSchema.pre('save', function(next) {
+  if (!this.foto_perfil) {
+    this.foto_perfil = '/public/default/perfil.jpg';
+  }
+  next();
+});
 // Crear el modelo
 const PerfilUsuario = mongoose.model('PerfilUsuario', perfilSchema);
 

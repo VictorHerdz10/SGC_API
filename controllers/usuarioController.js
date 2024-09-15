@@ -10,6 +10,10 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const registrar = async (req, res) => {
     const { email, nombre } = req.body;
@@ -55,31 +59,32 @@ const storage = multer.diskStorage({
   
   const upload = multer({ storage: storage });
 const perfil = async (req, res) => {
-    const { _id } = req.usuario;
-    
+    const { usuario } = req;
     try {
-      let perfil = await PerfilUsuario.findOne({ _id }).select('-_id').exec();
-      if (!perfil) {
-        return res.status(404).json({ msg: "Perfil no encontrado" });
+      let perfil = await PerfilUsuario.findById(usuario._id);
+      let usuarioactual = await Usuario.findById(usuario._id);
+      if (!perfil && !usuarioactual) {
+        return res.status(404).json({ msg: "Perfil y Usuario no encontrado" });
       }
   
       // Actualizar información del perfil
       perfil = Object.assign(perfil, req.body);
+      usuarioactual = Object.assign(usuario,req.body);
   
       // Si se envió una imagen, actualizar la URL de la foto de perfil
       if (req.file) {
         // Eliminar la imagen anterior si existe
-        if (perfil.foto_perfil) {
+        /*if (perfil.foto_perfil) {
           const oldImagePath = path.join(__dirname, '../public/', perfil.foto_perfil);
           fs.unlinkSync(oldImagePath);
-        }
+        }*/
   
         // Actualizar la URL de la nueva imagen
         perfil.foto_perfil = `/uploads/profile-pictures/${req.file.filename}`;
       }
   
       await perfil.save();
-  
+      await usuarioactual.save();
       res.json(perfil);
     } catch (error) {
       console.error(error);
@@ -138,6 +143,7 @@ const autenticar = async (req, res) => {
           telefono: perfil.telefono,
           cargo: perfil.cargo
         });
+        console.log({foto_perfil: perfil.foto_perfil})
     } else {
         const error = new Error("La contraseña es incorrecta");
         return res.status(403).json({ msg: error.message });

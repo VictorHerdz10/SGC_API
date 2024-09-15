@@ -20,6 +20,6 @@ router.post("/olvide-password", olvidePassword);
 router.route("/olvide-password/:token").get(comprobarToken).post(nuevoPassword);
 
 //Area Privada
-router.put("/actualizar-perfil", checkAuth, upload.single('foto_perfil'), perfil);
+router.put("/actualizar-perfil",checkAuth, upload.single('foto_perfil'), perfil);
 
 export default router;

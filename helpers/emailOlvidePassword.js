@@ -11,7 +11,6 @@ const emailOlvidePassword = async(datos)=>{
       });
     const{email,nombre, token}= datos;
     //Enviar el email
-   console.log(token)
     const info = await transporter.sendMail({
       from: 'contractUci',
       to: email,
