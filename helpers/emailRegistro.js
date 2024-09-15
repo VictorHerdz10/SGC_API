@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer';
 
-const emailRegistro = async(datos)=>{
+const emailRegistro = async (datos)=>{
   const {email,nombre,token} = datos;
   try {
     const transporter = nodemailer.createTransport({
@@ -11,20 +11,22 @@ const emailRegistro = async(datos)=>{
         pass: process.env.EMAIL_PASS,
       }
     });
-  //Enviar el email
-  const info = await transporter.sendMail({
-     from: 'EduRecord',
-     to:email,
-     subject: 'Comprueba tu cuenta en nuetro Sistema de Gestion de Expedientes',
-     text: 'Comprueba tu cuenta en nuetro Sistema de Gestion de Expedientes',
-     html:`<p>Hola: ${nombre}, comprueba tu cuenta para poder acudir a nuestros servicios</p>
-          <p>Tu cuenta ya esta lista, solo debes comprobarla en el siguente enlace:<a href="${process.env.FRONTEND_URL}/principal/confirmar/${token}">Comprobar Cuenta</a></p>
-
-          <p>Si tu no creaste esta cuenta puedes ignorar este mensaje. Cuida tu privacidad. Todo facil y seguro</p>
-     `,
-
-
-  })
+ // Enviar el email
+const info = await transporter.sendMail({
+  from: 'contractUci',
+  to: email,
+  subject: 'Comprueba tu cuenta en nuestro Sistema de Gestion de Contratos',
+  text: 'Comprueba tu cuenta en nuestro Sistema de Gestion de Contratos',
+  html: `
+    <p>Hola: ${nombre}, comprueba tu cuenta para poder acudir a nuestros servicios</p>
+    <p>Tu código de confirmación es: ${token}</p>
+    
+    <p>Por favor, ingresa este código en el formulario de confirmación:</p>
+    <p><strong>${token}</strong></p>
+    
+    <p>Si tu no creaste esta cuenta, ignora este mensaje. Cuida tu privacidad. Todo fácil y seguro.</p>
+  `,
+})
 
 console.log("Mensaje enviado: %s", info.messageId);
   } catch (error) {

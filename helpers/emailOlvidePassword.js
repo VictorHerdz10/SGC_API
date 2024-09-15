@@ -11,20 +11,20 @@ const emailOlvidePassword = async(datos)=>{
       });
     const{email,nombre, token}= datos;
     //Enviar el email
-
+   console.log(token)
     const info = await transporter.sendMail({
-       from: 'EduRecord',
-       to:email,
-       subject: 'Restablece tu password c en nuetro Sistema de Gestion de Expedientes',
-       text: 'Restablece tu password',
-       html:`<p>Hola: ${nombre}, has solicitado restablecer tu password</p>
-            <p>Sigue el siguiente enlace para generar un nuevo password:<a href="${process.env.FRONTEND_URL}/principal/olvide-mi-password/${token}">Restablecer Password</a></p>
-
-            <p>Si tu no creaste esta cuenta puedes ignorar este vensaje. Cuida tu privacidad. Todo facil y seguro</p>
-       `,
-
-
-    })
+      from: 'contractUci',
+      to: email,
+      subject: 'Restablece tu contraseña en nuestro Sistema de Gestión de Contratos',
+      text: 'Restablece tu contraseña',
+      html: `
+        <p>Hola: ${nombre}, has solicitado restablecer tu contraseña</p>
+        <p>Sigue el siguiente enlace para generar una nueva contraseña:</p>
+        <p><a href="${process.env.FRONTEND_URL}/principal/olvide-mi-password/${token}">Restablecer Contraseña</a></p>
+        
+        <p>Si no creaste esta cuenta, ignora este mensaje. Cuida tu privacidad. Todo fácil y seguro.</p>
+      `,
+    });
 
 console.log("Mensaje enviado: %s", info.messageId);
 

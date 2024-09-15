@@ -28,9 +28,7 @@ const registrar = async (req, res) => {
         _id: usuario._id,
         nombre: usuario.nombre,
         email: usuario.email,
-        tipo_usuario: usuario.tipo_usuario,
-        telefono: telefono,
-        cargo: cargo
+        tipo_usuario: usuario.tipo_usuario
       });
       await perfil.save();
         
@@ -110,7 +108,7 @@ const confirmar = async (req, res) => {
 };
 
 const autenticar = async (req, res) => {
-    const { email, password, tipo_usuario } = req.body;
+    const { email, password} = req.body;
 
     // Verificar si el usuario existe
     const usuario = await Usuario.findOne({ email });
@@ -132,7 +130,6 @@ const autenticar = async (req, res) => {
         // Autenticar
         const perfil = await PerfilUsuario.findOne({ _id: usuario._id }).select('-_id').exec();
         res.json({
-          id_usuario: usuario._id,
           nombre: usuario.nombre,
           email: usuario.email,
           tipo_usuario: usuario.tipo_usuario,

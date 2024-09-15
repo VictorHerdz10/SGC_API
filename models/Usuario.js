@@ -31,7 +31,7 @@ const schema = new mongoose.Schema({
   },
   token: {
     type: String,
-    default: generarId
+    default: generarId()
   },
   confirmado: {
     type: Boolean,

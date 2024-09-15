@@ -1,4 +1,5 @@
-const generarId = ()=>{
-   return Date.now().toString(32) + Math.random().toString(32).substring(2);
-}
-export default generarId;
+const generarId = () => {
+   return Math.floor(Math.random() * 100000000).toString().padStart(8, '0');
+ }
+ 
+ export default generarId;
