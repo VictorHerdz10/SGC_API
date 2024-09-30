@@ -1,11 +1,6 @@
 import mongoose from 'mongoose';
 
 const notificacionSchema = new mongoose.Schema({
-  _id: {
-    type: mongoose.Types.ObjectId,
-    ref: 'Notificacion',
-    required: true
-  },
   tipo: {
     type: String,
     enum: ['Caducacion', 'Presupuesto'],

@@ -1,11 +1,6 @@
 import mongoose from 'mongoose';
 
 const contratistaSchema = new mongoose.Schema({
-  _id: {
-    type: mongoose.Types.ObjectId,
-    ref: 'Contratista',
-    required: true
-  },
   nombre: {
     type: String,
     required: true

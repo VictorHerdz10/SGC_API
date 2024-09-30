@@ -1,19 +1,42 @@
 import express from "express";
 import checkAuth from "../middleware/authMiddleware.js";
 import {
-    crearContrato,
-    obtenerContratos,
-    actualizarContrato,
-    eliminarContrato,
-    obtenerContratoPorId
-  } from "../controllers/contratoController.js";
-  
-  const router = express.Router();
-  //Ruta privada de contratos de servicios
-  router.post('/',checkAuth,crearContrato);
-  router.get('/listar-contratos',checkAuth,obtenerContratos)
-  router.get('/listar-contratoporid/:id',checkAuth,obtenerContratoPorId);
-  router.put('/actualizar-contrato/:id',checkAuth,actualizarContrato);
-  router.get('/eliminar-contrato/:id',checkAuth,eliminarContrato);
-  
-  export default router;
+  crearContrato,
+  obtenerContratos,
+  actualizarContrato,
+  eliminarContrato,
+  obtenerContratoPorId,
+  obtenerContratosPorContratista,
+  obtenerContratosPorClienteAfiliado,
+  obtenerContratosPorCategorias,
+  obtenerContratosPorPresupuesto
+} from "../controllers/contratoController.js";
+
+const router = express.Router();
+//Ruta Privada
+router.post("/", checkAuth, crearContrato);
+router.get("/listar-contratos", checkAuth, obtenerContratos);
+router.get("/visualizar-contrato/:id", checkAuth, obtenerContratoPorId);
+router.put("/actualizar-contrato/:id", checkAuth, actualizarContrato);
+router.delete("/eliminar-contrato/:id", checkAuth, eliminarContrato);
+router.get(
+  "/filtrar-contrato-por-contratista/:contratista",
+  checkAuth,
+  obtenerContratosPorContratista
+);
+router.get(
+  "/filtrar-contratos-por-cliente/:clienteAfiliado",
+  checkAuth,
+  obtenerContratosPorClienteAfiliado
+);
+router.get(
+  "/filtrar-contratos-por-categorias/:categoria",
+  checkAuth,
+  obtenerContratosPorCategorias
+);
+router.get(
+  "/filtrar-contratos-por-presupuesto/:presupuesto/:tipo",
+  checkAuth,
+  obtenerContratosPorPresupuesto
+);
+export default router;

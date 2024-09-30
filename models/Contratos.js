@@ -1,11 +1,6 @@
 import mongoose from 'mongoose';
 
 const contratoSchema = new mongoose.Schema({
-  _id: {
-    type: mongoose.Types.ObjectId,
-    ref: 'Contrato',
-    required: true
-  },
   clienteAfiliado: {
     type: mongoose.Types.ObjectId,
     ref: 'ClienteAfiliado',

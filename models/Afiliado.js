@@ -1,11 +1,6 @@
 import mongoose from 'mongoose';
 
 const clienteAfiliadoSchema = new mongoose.Schema({
-  _id: {
-    type: mongoose.Types.ObjectId,
-    ref: 'ClienteAfiliado',
-    required: true
-  },
   nombre: {
     type: String,
     required: true

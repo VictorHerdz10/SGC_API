@@ -7,6 +7,7 @@ import dotenv from "dotenv";
 import usuarioRoutes from "./routes/usuarioRoutes.js";
 import notificacionesRoutes from "./routes/notificacionesRoutes.js";
 import presupuestoRoutes from "./routes/presupuestoRoutes.js"
+import contratosRoutes from "./routes/contratosRoutes.js";
 import socket from "./helpers/socketIO.js";
 
 //Creando instancia de express
@@ -39,6 +40,7 @@ app.use(cors(corsOptions));*/
   app.use("/api/usuario", usuarioRoutes);
   app.use("/api/notificaciones", notificacionesRoutes);
   app.use("/api/presupuesto",presupuestoRoutes);
+  app.use("/api/contratos",contratosRoutes);
 
   //Confoguar Socket
   const server = http.createServer(app);
