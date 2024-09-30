@@ -1,9 +1,13 @@
 import express from "express";
 import cors from "cors";
+import http from 'http';
 import path from 'path';
 import connectDB from "./config/db.js";
 import dotenv from "dotenv";
 import usuarioRoutes from "./routes/usuarioRoutes.js";
+import notificacionesRoutes from "./routes/notificacionesRoutes.js";
+import presupuestoRoutes from "./routes/presupuestoRoutes.js"
+import socket from "./helpers/socketIO.js";
 
 //Creando instancia de express
 const app = express();
@@ -33,10 +37,12 @@ connectDB()
   }
 app.use(cors(corsOptions));*/
   app.use("/api/usuario", usuarioRoutes);
-  /*app.use("/api/expediente", expedienteRoutes);
-  app.use("/api/solicitud",solicitudRoutes);
-  app.use("/api/boletaMovimiento",boletaMovimientoRoutes);*/
+  app.use("/api/notificaciones", notificacionesRoutes);
+  app.use("/api/presupuesto",presupuestoRoutes);
 
+  //Confoguar Socket
+  const server = http.createServer(app);
+  socket(server);
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

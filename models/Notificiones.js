@@ -26,6 +26,10 @@ const notificacionSchema = new mongoose.Schema({
   leida: {
     type: Boolean,
     default: false
+  },
+  destinatario: {
+    type: String,
+    required:true
   }
 }, {
   timestamps: true
