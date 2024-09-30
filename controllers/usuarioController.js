@@ -91,7 +91,22 @@ const perfil = async (req, res) => {
       res.status(500).json({ msg: "Error al actualizar el perfil" });
     }
   };;
+const perfilInfo = async (req,res)=>{
+const{usuario}=req;
+try {
+    const infoperfil = await PerfilUsuario.findById(usuario._id);
+    res.json(infoperfil)
+} catch (error) {
+    console.error(error);
+    res.status(500).json({ msg: "Error al Visualizar el perfil" });
+    
+}
 
+
+
+
+
+}
 const confirmar = async (req, res) => {
     const { token } = req.body;
 
@@ -205,6 +220,77 @@ const nuevoPassword = async (req, res) => {
         res.status(500).json({ msg: "Error al actualizar la contraseña" });
     }
 };
+// Modifica la función visualizarusuarios
+const visualizarusuarios = async (req, res) => {
+    const { usuario } = req;
+    
+    if (usuario.tipo_usuario !== "Admin_Gnl") {
+      return res.status(400).json({ msg: "No tienes permisos para utilizar esta funcionalidad" });
+    }
+  
+    try {
+      const usuarios = await Usuario.find().select('nombre email tipo_usuario');
+      // Elimina al usuario actual de la lista
+      const filteredUsers = usuarios.filter(user => user.tipo_usuario.toString() !== "Admin_Gnl");
+      res.json(filteredUsers);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ msg: "Error al visualizar usuarios" });
+    }
+  };
+  
+  // Función para eliminar usuarios
+  const eliminarUsuario = async (req, res) => {
+    const { id } = req.params;
+    const{usuario}=req;
+    if (usuario.tipo_usuario !== "Admin_Gnl") {
+      return res.status(400).json({ msg: "No tienes permisos para eliminar usuarios" });
+    }
+  
+    try {
+      const usuarioToDelete = await Usuario.findById(id);
+      
+      if (!usuarioToDelete) {
+        return res.status(404).json({ msg: "Usuario no encontrado" });
+      }
+  
+      await usuarioToDelete.remove();
+      res.json({ msg: "Usuario eliminado correctamente" });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ msg: "Error al eliminar usuario" });
+    }
+  };
+  
+  // Función para asignar roles
+  const asignarRoles = async (req, res) => {
+    const{usuario}=req;
+    const { id, rol } = req.body;
+    
+    if (usuario.tipo_usuario !== "Admin_Gnl") {
+      return res.status(400).json({ msg: "No tienes permisos para asignar roles" });
+    }
+  
+    try {
+      const usuarioasignar = await Usuario.findById(id);
+      
+      if (!usuarioasignar) {
+        return res.status(404).json({ msg: "Usuario no encontrado" });
+      }
+      if(usuarioasignar.tipo_usuario===rol){
+        return res.status(400).json({msg:"El usuario ya tiene asignado este rol, por favor verifique..."})
+      }
+      // Asigna roles al usuario
+      usuarioasignar.tipo_usuario = rol;
+      await usuarioasignar.save();
+  
+      return res.json({ msg: "Rol asignado correctamente" });
+    } catch (error) {
+      console.error(error);
+       return res.status(500).json({ msg: "Error al asignar roles" });
+    }
+  };
+
 
 export {
     registrar,
@@ -214,5 +300,9 @@ export {
     comprobarToken,
     nuevoPassword,
     perfil,
-    upload
+    upload,
+    perfilInfo,
+    visualizarusuarios,
+    eliminarUsuario,
+    asignarRoles
 };

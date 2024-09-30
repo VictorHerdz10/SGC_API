@@ -27,7 +27,7 @@ const schema = new mongoose.Schema({
   },
   tipo_usuario: {
     type: String,
-    required: [true, 'Tipo de usuario es obligatorio']
+    default: "Sin Asignar",
   },
   token: {
     type: String,
