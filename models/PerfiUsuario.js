@@ -34,7 +34,7 @@ const perfilSchema = new mongoose.Schema({
     default: '../public/uploads/profile-pictures/default/perfil.jpg'
   }
 }, {
-  timestamps: true
+  timestamps: false
 });
 
 // Función middleware para establecer la foto de perfil por defecto

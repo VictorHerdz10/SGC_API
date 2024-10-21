@@ -1,7 +1,6 @@
 import express from "express";
 import {
   registrar,
-  confirmar,
   autenticar,
   olvidePassword,
   comprobarToken,
@@ -11,21 +10,25 @@ import {
   perfilInfo,
   visualizarusuarios,
   eliminarUsuario,
-  asignarRoles
+  asignarRoles,
+  actualizarPerfil,
+  passchange
 } from "../controllers/usuarioController.js";
 import checkAuth from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 //Area Publica
 router.post("/", registrar);
-router.post("/confirmar", confirmar);
 router.post("/login", autenticar);
 router.post("/olvide-password", olvidePassword);
-router.route("/olvide-password/:token").get(comprobarToken).post(nuevoPassword);
+router.get("/olvide-password",comprobarToken)
+router.post("/olvide-password/:token",nuevoPassword);
 
 //Area Privada
-router.put("/actualizar-perfil",checkAuth, upload.single('foto_perfil'), perfil);
+router.put("/actualizar-perfil",checkAuth, upload.single('foto_perfil'), actualizarPerfil);
 router.get("/obtener-perfil",checkAuth,perfilInfo);
+router.get("/perfil", checkAuth, perfil);
+router.post("/cambiar-password",checkAuth,passchange);
 //Area Privada del AdminGeneral
 router.get("/obtener-usuarios",checkAuth,visualizarusuarios);
 router.delete("/eliminar-usuario/:id",checkAuth,eliminarUsuario);

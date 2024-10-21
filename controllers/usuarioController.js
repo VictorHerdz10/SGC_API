@@ -3,7 +3,6 @@
 import Usuario from "../models/Usuario.js";
 import generarJWT from "../helpers/generarJWT.js";
 import generarId from "../helpers/generarId.js";
-import emailRegistro from "../helpers/emailRegistro.js";
 import emailOlvidePassword from "../helpers/emailOlvidePassword.js";
 import PerfilUsuario from "../models/PerfiUsuario.js";
 import multer from "multer";
@@ -11,12 +10,14 @@ import fs from "fs";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import { fileURLToPath } from "url";
+import { eliminarArchivoAnterior } from "../middleware/archivosubidor.js";
+import Contrato from "../models/Contratos.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const registrar = async (req, res) => {
-  const { email, nombre } = req.body;
+  const { email} = req.body;
   // Prevenir usuarios duplicados
   const existeUsuario = await Usuario.findOne({ email });
 
@@ -35,10 +36,12 @@ const registrar = async (req, res) => {
       tipo_usuario: usuario.tipo_usuario,
     });
     await perfil.save();
-
-    // Enviar Email
-    emailRegistro({ email, nombre, token: usuario.token });
-    res.json({ msg: "Creado Correctamente, revisa tu email" });
+    if(email === "gsanchez@uci.cu"){
+      usuario.tipo_usuario = "Admin_Gnl"
+      usuario.save();
+    }
+    
+    res.json({ msg: "Registrado Correctamente" });
   } catch (error) {
     console.log(error);
     res.status(500).json({ msg: "Error al registrar el usuario" });
@@ -61,7 +64,11 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage: storage });
-const perfil = async (req, res) => {
+const perfil = (req, res) => {
+  const { usuario } = req;
+  res.json(usuario);
+};
+const actualizarPerfil = async (req, res) => {
   const { usuario } = req;
   try {
     let perfil = await PerfilUsuario.findById(usuario._id);
@@ -76,11 +83,30 @@ const perfil = async (req, res) => {
 
     // Si se envió una imagen, actualizar la URL de la foto de perfil
     if (req.file) {
+      const extension = path.extname(req.file.filename).toLowerCase();
+      // Verificar si la extensión coincide con lo permitido
+      const allowedExtensions = [".png", "jpg"];
+      if (!allowedExtensions.includes(extension)) {
+        const ruta = `./public/uploads/profile-pictures/${req.file.filename}`;
+        eliminarArchivoAnterior(ruta);
+        return res
+          .status(400)
+          .json({ msg: "Solo se permiten archivos PNG y JPG" });
+      }
       // Eliminar la imagen anterior si existe
-      /*if (perfil.foto_perfil) {
-          const oldImagePath = path.join(__dirname, '../public/', perfil.foto_perfil);
-          fs.unlinkSync(oldImagePath);
-        }*/
+      console.log(perfil.foto_perfil);
+      if (
+        perfil.foto_perfil &&
+        perfil.foto_perfil !== "uploads/profile-pictures/default/perfil.jpg"
+      ) {
+        const oldImagePath = path.join(
+          __dirname,
+          "../public/",
+          perfil.foto_perfil
+        );
+        fs.unlinkSync(oldImagePath);
+        console.log("foto vieja eliminada");
+      }
 
       // Actualizar la URL de la nueva imagen
       perfil.foto_perfil = `/uploads/profile-pictures/${req.file.filename}`;
@@ -104,25 +130,6 @@ const perfilInfo = async (req, res) => {
     res.status(500).json({ msg: "Error al Visualizar el perfil" });
   }
 };
-const confirmar = async (req, res) => {
-  const { token } = req.body;
-
-  const usuarioConfirmar1 = await Usuario.findOne({ token });
-
-  if (!usuarioConfirmar1) {
-    const error = new Error("Token no válido");
-    return res.status(404).json({ msg: error.message });
-  }
-  try {
-    usuarioConfirmar1.token = null;
-    usuarioConfirmar1.confirmado = true;
-    await usuarioConfirmar1.save();
-    res.json({ msg: "Usuario confirmado correctamente" });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ msg: "Error al confirmar el usuario" });
-  }
-};
 
 const autenticar = async (req, res) => {
   const { email, password } = req.body;
@@ -136,8 +143,8 @@ const autenticar = async (req, res) => {
   }
 
   // Comprobar si el usuario está confirmado
-  if (!usuario.confirmado) {
-    const error = new Error("La cuenta no ha sido confirmada");
+  if (!usuario.tipo_usuario) {
+    const error = new Error("La cuenta no tiene un rol asignado");
     return res.status(403).json({ msg: error.message });
   }
 
@@ -157,7 +164,6 @@ const autenticar = async (req, res) => {
       telefono: perfil.telefono,
       cargo: perfil.cargo,
     });
-    console.log({ foto_perfil: perfil.foto_perfil });
   } else {
     const error = new Error("La contraseña es incorrecta");
     return res.status(403).json({ msg: error.message });
@@ -198,7 +204,7 @@ const comprobarToken = async (req, res) => {
   const tokenValido = await Usuario.findOne({ token });
 
   if (tokenValido) {
-    return res.json({ msg: "Token válido y existe el usuario" });
+    return res.json({ msg: "Token válido ", url: `/olvide-password/${token}` });
   } else {
     const error = new Error("Token no válido");
     return res.status(400).json({ msg: error.message });
@@ -291,11 +297,9 @@ const asignarRoles = async (req, res) => {
       return res.status(404).json({ msg: "Usuario no encontrado" });
     }
     if (usuarioasignar.tipo_usuario === rol) {
-      return res
-        .status(400)
-        .json({
-          msg: "El usuario ya tiene asignado este rol, por favor verifique...",
-        });
+      return res.status(400).json({
+        msg: "El usuario ya tiene asignado este rol, por favor verifique...",
+      });
     }
     // Asigna roles al usuario
     usuarioasignar.tipo_usuario = rol;
@@ -308,9 +312,26 @@ const asignarRoles = async (req, res) => {
   }
 };
 
+const passchange = async (req, res) => {
+  const { usuario } = req;
+  const { password, newpassword } = req.body;
+  try {
+    const usuarioactual = await Usuario.findById(usuario._id);
+    //Comprobar password esistente
+    const passRigth = await usuarioactual.comprobarPassword(password);
+    if (!passRigth) {
+      return res
+        .status(404)
+        .json({ msg: "Su contraseña axtual no coincide, verifiquela" });
+    }
+    usuarioactual.password = newpassword;
+    usuarioactual.save();
+  } catch (error) {}
+};
+
+
 export {
   registrar,
-  confirmar,
   autenticar,
   olvidePassword,
   comprobarToken,
@@ -321,4 +342,6 @@ export {
   visualizarusuarios,
   eliminarUsuario,
   asignarRoles,
+  actualizarPerfil,
+  passchange
 };

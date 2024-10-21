@@ -1,41 +1,85 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-const contratoSchema = new mongoose.Schema({
-  clienteAfiliado: {
-    type: mongoose.Types.ObjectId,
-    ref: 'ClienteAfiliado',
-    required: true
+const contratoSchema = new mongoose.Schema(
+  {
+    info:{
+        creadoPor: { type: String },
+        fechaDeCreacion: { type: Date },
+        modificadoPor: { type: String },
+        fechaDeModificacion: { type: Date },
+      }
+    ,
+    tipoDeContrato: {
+      type: String,
+      required: true,
+    },
+    objetoDelContrato: {
+      type: String,
+      required: true,
+    },
+    entidad: {
+      type: String,
+      required: true,
+    },
+    direccionEjecuta: {
+      type: String,
+      required: true,
+    },
+    aprobadoPorCC: {
+      type: Date,
+    },
+    firmado: {
+      type: Date,
+    },
+    entregadoJuridica: {
+      type: Date,
+    },
+    fechaRecibido: {
+      type: Date,
+      required: true,
+    },
+    valor: {
+      type: Number,
+      required: true,
+    },
+    valorDisponible: {
+      type: Number,
+      required: true,
+    },
+    valorGastado: {
+      type: Number,
+      default: 0,
+    },
+    factura: [
+      {
+        numeroDictamen: { type: String },
+      },
+    ],
+    vigencia: {
+      type: String,
+      required: true,
+    },
+    fechaVencimiento: {
+      type: Date,
+      required: true,
+    },
+    estado: {
+      type: String,
+    },
+    numeroDictamen: {
+      type: String,
+      required: true,
+    },
+    subirPDF: {
+      type: String,
+      default: null,
+    },
   },
-  contratista: {
-    type: mongoose.Types.ObjectId,
-    ref: 'Contratista',
-    required: true
-  },
-  categoria: {
-    type: String,
-    required: true
-  },
-  presupuesto: {
-    type: Number,
-    required: true
-  },
-  fechaInicio: {
-    type: Date,
-    required: true
-  },
-  fechaFin: {
-    type: Date,
-    required: true
-  },
-  estado: {
-    type: String,
-    enum: ['Activo', 'Inactivo'],
-    default: 'Activo'
+  {
+    timestamps: false,
   }
-}, {
-  timestamps: true
-});
+);
 
-const Contrato = mongoose.model('Contrato', contratoSchema);
+const Contrato = mongoose.model("Contrato", contratoSchema);
 
 export default Contrato;

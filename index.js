@@ -1,20 +1,22 @@
 import express from "express";
 import cors from "cors";
-import http from 'http';
 import path from 'path';
 import connectDB from "./config/db.js";
 import dotenv from "dotenv";
 import usuarioRoutes from "./routes/usuarioRoutes.js";
-import notificacionesRoutes from "./routes/notificacionesRoutes.js";
-import presupuestoRoutes from "./routes/presupuestoRoutes.js"
-import contratosRoutes from "./routes/contratosRoutes.js";
-import socket from "./helpers/socketIO.js";
-
+import registrosContratosRoutes from "./routes/registrosContratosRoutes.js";
+import facturasRoutes from "./routes/facturasRoutes.js"
+import bodyParser from 'body-parser';
 //Creando instancia de express
 const app = express();
 app.use(express.json());
 dotenv.config();
-// Configurar la ruta base para servir archivos estáticos
+// Middleware para parsear form-data
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+
+//Configurar la ruta base para servir archivos estáticos
 const __filename = import.meta.url;
 const __dirname = path.dirname(__filename);
 const publicDir = path.join(__dirname, 'public');
@@ -25,7 +27,7 @@ connectDB()
   .catch( err =>
     console.error("No se pudo conectar a la base de datos:", err)
   );
-  /* const dominiosPermitidos = ["http://localhost:3000"];
+ /* const dominiosPermitidos = ['http://localhost:5173'];
   const corsOptions = {
     origin: function(origin, callback){
       if(dominiosPermitidos.indexOf(origin) !== -1){
@@ -36,16 +38,17 @@ connectDB()
     }
   }
   }
-app.use(cors(corsOptions));*/
+  */
+//app.use(cors(corsOptions));
+app.use(cors('*'));
   app.use("/api/usuario", usuarioRoutes);
-  app.use("/api/notificaciones", notificacionesRoutes);
-  app.use("/api/presupuesto",presupuestoRoutes);
-  app.use("/api/contratos",contratosRoutes);
+  app.use("/api/contratos",registrosContratosRoutes);
+  app.use("/api/facturas",facturasRoutes)
 
-  //Confoguar Socket
-  const server = http.createServer(app);
-  socket(server);
+  
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
+export default app;

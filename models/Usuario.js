@@ -36,9 +36,9 @@ const schema = new mongoose.Schema({
   confirmado: {
     type: Boolean,
     default: false
-  }
+  },
 }, {
-  timestamps: true
+  timestamps: false
 });
 
 schema.pre('save', async function(next) {
