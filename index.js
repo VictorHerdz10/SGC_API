@@ -49,7 +49,7 @@ connectDB()
   .catch((err) =>
     console.error("No se pudo conectar a la base de datos:", err)
   );
-/* const dominiosPermitidos = ['http://localhost:5173'];
+ const dominiosPermitidos = [process.env.FRONTEND_URL];
   const corsOptions = {
     origin: function(origin, callback){
       if(dominiosPermitidos.indexOf(origin) !== -1){
@@ -60,9 +60,9 @@ connectDB()
     }
   }
   }
-  */
-//app.use(cors(corsOptions));
-app.use(cors("*"));
+
+app.use(cors(corsOptions));
+
 app.use("/api/usuario", usuarioRoutes);
 app.use("/api/contratos", registrosContratosRoutes);
 app.use("/api/facturas", facturasRoutes);
