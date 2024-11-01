@@ -5,7 +5,8 @@ import {
     eliminarFactura,
     visualizaFactura,
     modificarFactura,
-    advertenciamonto
+    advertenciamontoCrear,
+    advertenciamontoModificar
 } from "../controllers/facturasController.js";
 
 
@@ -13,11 +14,12 @@ import {
 const router = express.Router();
 
 //Ruta privada de Facturas
-router.post("/",checkAuth,crearFactura);
-router.post('/advertencia-monto',checkAuth,advertenciamonto);
+router.post("/crear-factura",checkAuth,crearFactura);
+router.post('/advertencia-monto-crear',checkAuth,advertenciamontoCrear);
+router.post('/advertencia-monto-modificar',checkAuth,advertenciamontoModificar);
 router.post("/visualizar-factura",checkAuth,visualizaFactura);
 router.put("/modificar-factura",checkAuth,modificarFactura);
-router.delete("/eliminar-factura",checkAuth,eliminarFactura);
+router.delete("/eliminar-factura/:contratoId",checkAuth,eliminarFactura);
 
 
 

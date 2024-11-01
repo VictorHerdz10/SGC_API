@@ -2,6 +2,8 @@ import multer from "multer";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import moment from "moment";
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,21 +15,17 @@ const storage = multer.diskStorage({
       "../public/documents/contracts/"
     );
     fs.mkdirSync(uploadPath, { recursive: true });
-    cb(null, uploadPath);
+    cb(null, uploadPath);// Carpeta local temporal
   },
   filename: (req, file, cb) => {
-    const customfilename = `${path.basename(file.originalname)}`;
-    cb(null, customfilename);
+    const currentDate = moment().format('YYYYMMDD');
+    const originalnameWithoutExtension = path.parse(file.originalname).name;
+    const customFilename = `${originalnameWithoutExtension}-${currentDate}${path.extname(file.originalname)}`;
+  
+    cb(null, customFilename);
   },
 });
 const upload = multer({ 
-  storage: storage,
-  fileFilter(req, file, cb) {
-    // Verificar si el archivo está permitido
-    if (!file.originalname.match(/\.(pdf)$/)) {
-      return cb(new Error('Solo se permiten archivos PDF o DOCX'));
-    }
-    cb(null, true);
-  }
+  storage: storage
 });
 export default upload;

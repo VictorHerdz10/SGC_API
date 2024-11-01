@@ -5,15 +5,12 @@ import {
   obtenerRegistroContratos,
   actualizarRegistroContrato,
   eliminarRegistroContrato,
-  obtenerContratosPorEntidad,
-  obtenerContratosPorEstado,
-  obtenerContratosPorDireccion,
-  obtenerContratosPorValorTotal,
-  obtenerContratosPorValorDisponible,
-  obtenerContratosPorValorGastado,
-  notificarcontratos
+  obtenerContratosFiltrados,
+  notificarcontratos,
+  marcarComoLeidas,
+  marcarleidasAll
 } from "../controllers/registrosContratosController.js";
-import upload from "../middleware/upload.js";
+import upload from "../middleware/uploadPdf.js";
 import { subirArchivo } from "../middleware/archivosubidor.js";
 
 const router = express.Router();
@@ -33,36 +30,13 @@ router.delete(
   checkAuth,
   eliminarRegistroContrato
 );
-router.get(
-  "/filtrar-contrato-por-entidad/:entidad",
+router.post(
+  "/filtrar-contratos",
   checkAuth,
-  obtenerContratosPorEntidad
-);
-router.get(
-  "/filtrar-contratos-por-estado/:estado",
-  checkAuth,
-  obtenerContratosPorEstado
-);
-router.get(
-  "/filtrar-contratos-por-direccion/:direccionEjecuta",
-  checkAuth,
-  obtenerContratosPorDireccion
-);
-router.get(
-  "/filtrar-contratos-por-valor-total/:valor/:tipo/:valorFin",
-  checkAuth,
-  obtenerContratosPorValorTotal
-);
-router.get(
-  "/filtrar-contratos-por-valor-disponible/:valorDisponible/:tipo/:valorFin",
-  checkAuth,
-  obtenerContratosPorValorDisponible
-);
-router.get(
-  "/filtrar-contratos-por-valor-gastado/:valorGastado/:tipo/:valorFin",
-  checkAuth,
-  obtenerContratosPorValorGastado
+  obtenerContratosFiltrados
 );
 
 router.get("/notificacion-contratos",checkAuth,notificarcontratos);
+router.get("/marcar-leida/:id",checkAuth,marcarComoLeidas);
+router.get('/marcar-leidas-all',checkAuth,marcarleidasAll)
 export default router;

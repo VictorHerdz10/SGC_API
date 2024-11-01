@@ -2,7 +2,6 @@
 
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
-import generarId from '../helpers/generarId.js';
 
 const schema = new mongoose.Schema({
   nombre: {
@@ -29,14 +28,15 @@ const schema = new mongoose.Schema({
     type: String,
     default: "Sin Asignar",
   },
+  relacionId:{
+    type: String,
+    default: null
+  },
   token: {
     type: String,
-    default: generarId()
+    default: null
   },
-  confirmado: {
-    type: Boolean,
-    default: false
-  },
+  
 }, {
   timestamps: false
 });

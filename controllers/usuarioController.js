@@ -5,24 +5,23 @@ import generarJWT from "../helpers/generarJWT.js";
 import generarId from "../helpers/generarId.js";
 import emailOlvidePassword from "../helpers/emailOlvidePassword.js";
 import PerfilUsuario from "../models/PerfiUsuario.js";
-import multer from "multer";
 import fs from "fs";
 import path from "path";
-import { v4 as uuidv4 } from "uuid";
+import splitBySlash from "../helpers/splitBySlash.js";
+import dbx from "../config/dbx.js";
+import getDirectLink from "../helpers/generarLink.js";
+import limpiarCarpetaLocal from "../helpers/limpiarCarpeta.js";
 import { fileURLToPath } from "url";
-import { eliminarArchivoAnterior } from "../middleware/archivosubidor.js";
-import Contrato from "../models/Contratos.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const registrar = async (req, res) => {
-  const { email} = req.body;
+  const { email } = req.body;
   // Prevenir usuarios duplicados
   const existeUsuario = await Usuario.findOne({ email });
 
   if (existeUsuario) {
-    const error = new Error("Usuario ya Registrado");
+    const error = new Error("Usuario ya registrado");
     return res.status(400).json({ msg: error.message });
   }
   try {
@@ -36,38 +35,23 @@ const registrar = async (req, res) => {
       tipo_usuario: usuario.tipo_usuario,
     });
     await perfil.save();
-    if(email === "gsanchez@uci.cu"){
-      usuario.tipo_usuario = "Admin_Gnl"
+    if (email === "gsanchez@uci.cu") {
+      usuario.tipo_usuario = "Admin_Gnl";
       usuario.save();
     }
-    
-    res.json({ msg: "Registrado Correctamente" });
+
+    res.json({ msg: "Usuario registrado correctamente" });
   } catch (error) {
     console.log(error);
     res.status(500).json({ msg: "Error al registrar el usuario" });
   }
 };
 
-// Configuración de Multer para manejar subidas de archivos
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadPath = path.join(
-      __dirname,
-      "../public/uploads/profile-pictures/"
-    );
-    fs.mkdirSync(uploadPath, { recursive: true });
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    cb(null, uuidv4() + path.extname(file.originalname));
-  },
-});
-
-const upload = multer({ storage: storage });
 const perfil = (req, res) => {
   const { usuario } = req;
   res.json(usuario);
 };
+
 const actualizarPerfil = async (req, res) => {
   const { usuario } = req;
   try {
@@ -80,41 +64,62 @@ const actualizarPerfil = async (req, res) => {
     // Actualizar información del perfil
     perfil = Object.assign(perfil, req.body);
     usuarioactual = Object.assign(usuario, req.body);
-
+  
     // Si se envió una imagen, actualizar la URL de la foto de perfil
     if (req.file) {
-      const extension = path.extname(req.file.filename).toLowerCase();
-      // Verificar si la extensión coincide con lo permitido
-      const allowedExtensions = [".png", "jpg"];
-      if (!allowedExtensions.includes(extension)) {
-        const ruta = `./public/uploads/profile-pictures/${req.file.filename}`;
-        eliminarArchivoAnterior(ruta);
-        return res
-          .status(400)
-          .json({ msg: "Solo se permiten archivos PNG y JPG" });
-      }
-      // Eliminar la imagen anterior si existe
-      console.log(perfil.foto_perfil);
-      if (
-        perfil.foto_perfil &&
-        perfil.foto_perfil !== "uploads/profile-pictures/default/perfil.jpg"
-      ) {
-        const oldImagePath = path.join(
-          __dirname,
-          "../public/",
-          perfil.foto_perfil
+      if (perfil.originalName === "perfil.png") {
+        await perfil.updateOne({}, { $unset: { foto_perfil: "" } });
+      } else if (perfil.originalName !== "perfil.png") {
+        await dbx.filesDeleteV2({
+          path: perfil.dropboxPath,
+        });
+
+        console.log(
+          "Archivo existente eliminado de la nube:",
+          perfil.originalName
         );
-        fs.unlinkSync(oldImagePath);
-        console.log("foto vieja eliminada");
+        await perfil.updateOne({}, { $unset: { foto_perfil: "" } });
+        console.log("actualizado en db");
       }
 
-      // Actualizar la URL de la nueva imagen
-      perfil.foto_perfil = `/uploads/profile-pictures/${req.file.filename}`;
-    }
+      // Subir archivo a Dropbox
+      const filePath = req.file.path;
+      const uploadedFile = await dbx.filesUpload({
+        path: "/uploads/" + req.file.filename,
+        contents: fs.readFileSync(filePath),
+        mode: "add",
+        autorename: true,
+        mute: true,
+      });
 
+      // Obtener el link público del archivo
+      const publicLink = await dbx.sharingCreateSharedLinkWithSettings({
+        path: uploadedFile.result.path_display,
+        settings: {
+          requested_visibility: {
+            ".tag": "public",
+          },
+        },
+      });
+
+      const directImageLink = getDirectLink(publicLink.result.url);
+      perfil.foto_perfil = directImageLink;
+      perfil.originalName = req.file.originalname;
+      perfil.dropboxPath = uploadedFile.result.path_display;
+    }
     await perfil.save();
     await usuarioactual.save();
-    res.json(perfil);
+    const rutaCarpeta = path.join(
+      __dirname,
+      "..",
+      "public",
+      "uploads",
+      "profile-pictures"
+    );
+    limpiarCarpetaLocal(rutaCarpeta)
+      .then(() => console.log("Proceso de limpieza completado"))
+      .catch((error) => console.error("Error en el proceso:", error));
+    res.json({ msg: "Perfil actualizado exitosamente"});
   } catch (error) {
     console.error(error);
     res.status(500).json({ msg: "Error al actualizar el perfil" });
@@ -142,20 +147,20 @@ const autenticar = async (req, res) => {
     return res.status(404).json({ msg: error.message });
   }
 
-  // Comprobar si el usuario está confirmado
-  if (!usuario.tipo_usuario) {
-    const error = new Error("La cuenta no tiene un rol asignado");
-    return res.status(403).json({ msg: error.message });
-  }
-
   // Revisar el password
   const passwordCorrecta = await usuario.comprobarPassword(password);
   if (passwordCorrecta) {
+    // Comprobar si el usuario está confirmado
+    if (usuario.tipo_usuario === "Sin Asignar") {
+      const error = new Error("Su cuenta no tiene los permisos asignados");
+      return res.status(403).json({ msg: error.message });
+    }
     // Autenticar
     const perfil = await PerfilUsuario.findOne({ _id: usuario._id })
       .select("-_id")
       .exec();
     res.json({
+      _id: usuario._id,
       nombre: usuario.nombre,
       email: usuario.email,
       tipo_usuario: usuario.tipo_usuario,
@@ -204,9 +209,12 @@ const comprobarToken = async (req, res) => {
   const tokenValido = await Usuario.findOne({ token });
 
   if (tokenValido) {
-    return res.json({ msg: "Token válido ", url: `/olvide-password/${token}` });
+    return res.json({
+      msg: "Codigo válido. Redireccionando........... ",
+      url: `/olvide-password/${token}`,
+    });
   } else {
-    const error = new Error("Token no válido");
+    const error = new Error("Codigo de verificación incorrecto");
     return res.status(400).json({ msg: error.message });
   }
 };
@@ -242,7 +250,7 @@ const visualizarusuarios = async (req, res) => {
   }
 
   try {
-    const usuarios = await Usuario.find().select("nombre email tipo_usuario");
+    const usuarios = await PerfilUsuario.find();
     // Elimina al usuario actual de la lista
     const filteredUsers = usuarios.filter(
       (user) => user.tipo_usuario.toString() !== "Admin_Gnl"
@@ -266,12 +274,13 @@ const eliminarUsuario = async (req, res) => {
 
   try {
     const usuarioToDelete = await Usuario.findById(id);
+    const perfilToDelete = await PerfilUsuario.findById(id);
 
     if (!usuarioToDelete) {
       return res.status(404).json({ msg: "Usuario no encontrado" });
     }
-
-    await usuarioToDelete.remove();
+    await perfilToDelete.deleteOne();
+    await usuarioToDelete.deleteOne();
     res.json({ msg: "Usuario eliminado correctamente" });
   } catch (error) {
     console.error(error);
@@ -283,7 +292,6 @@ const eliminarUsuario = async (req, res) => {
 const asignarRoles = async (req, res) => {
   const { usuario } = req;
   const { id, rol } = req.body;
-
   if (usuario.tipo_usuario !== "Admin_Gnl") {
     return res
       .status(400)
@@ -292,6 +300,7 @@ const asignarRoles = async (req, res) => {
 
   try {
     const usuarioasignar = await Usuario.findById(id);
+    const perfilAsignar = await PerfilUsuario.findById(id);
 
     if (!usuarioasignar) {
       return res.status(404).json({ msg: "Usuario no encontrado" });
@@ -303,7 +312,21 @@ const asignarRoles = async (req, res) => {
     }
     // Asigna roles al usuario
     usuarioasignar.tipo_usuario = rol;
+    perfilAsignar.tipo_usuario = rol;
+    await perfilAsignar.save();
     await usuarioasignar.save();
+    if(rol==='especialista'){
+      const relacionConDirector = await Usuario.findById(req.body.directorId);
+      
+      if(!relacionConDirector){
+        return res.status(404).json({ msg: "Director no encontrado" });
+        }
+        const especialistaRelacionado = await Usuario.findById(id);
+        especialistaRelacionado.relacionId = relacionConDirector._id;
+        await especialistaRelacionado.save();
+        return res.json({ msg: "Rol y permisos asignado  correctamente" });
+
+    }
 
     return res.json({ msg: "Rol asignado correctamente" });
   } catch (error) {
@@ -313,6 +336,7 @@ const asignarRoles = async (req, res) => {
 };
 
 const passchange = async (req, res) => {
+ 
   const { usuario } = req;
   const { password, newpassword } = req.body;
   try {
@@ -326,9 +350,26 @@ const passchange = async (req, res) => {
     }
     usuarioactual.password = newpassword;
     usuarioactual.save();
-  } catch (error) {}
+    return res.json({ msg: "Contraseña cambiada correctamente" });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ msg: "Error al cambiar contraseña" });
+  }
 };
-
+const servirRuta = async (req, res) => {
+  const { id } = req.params;
+  const usuario = await PerfilUsuario.findById(id);
+  const ruta = splitBySlash(usuario.foto_perfil);
+  // Ruta absoluta directa
+  const fullPath = `D:\\Victor\\tesis\\app\\backend\\public\\${ruta}`;
+ 
+  res.sendFile(fullPath, (err) => {
+    if (err) {
+      console.error("Error al intentar servir el archivo:", err);
+      res.status(404).send("Imagen no encontrada");
+    }
+  });
+};
 
 export {
   registrar,
@@ -337,11 +378,11 @@ export {
   comprobarToken,
   nuevoPassword,
   perfil,
-  upload,
   perfilInfo,
   visualizarusuarios,
   eliminarUsuario,
   asignarRoles,
   actualizarPerfil,
-  passchange
+  passchange,
+  servirRuta,
 };

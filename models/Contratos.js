@@ -53,6 +53,7 @@ const contratoSchema = new mongoose.Schema(
     factura: [
       {
         numeroDictamen: { type: String },
+        monto:{ type:Number}
       },
     ],
     vigencia: {
@@ -69,6 +70,12 @@ const contratoSchema = new mongoose.Schema(
     numeroDictamen: {
       type: String,
       required: true,
+    },
+    originalName:{
+      type:String,
+    },
+    dropboxPath:{
+      type:String,
     },
     subirPDF: {
       type: String,

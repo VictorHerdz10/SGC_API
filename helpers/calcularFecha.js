@@ -2,55 +2,47 @@ const calcularFechaFin = (inicio, vigencia) => {
   // Parsear la fecha de inicio
   const inicioDate = new Date(inicio);
   
-  // Inicializar los valores de duración
-  let durationYears = 0;
-  let durationMonths = 0;
-  let durationDays = 0;
-
   // Expresión regular para capturar años, meses y días
-  const regex = /(\d+)\s*(year|years|monht|months|day|days)/gi;
+  const regex = /(\d+)\s*(year|years?|month|months?|day|days?)/gi;
   
   // Buscar todas las coincidencias en la vigencia
   const matches = vigencia.match(regex);
   
   if (matches) {
+    let totalMilliseconds = 0;
+    
     for (const match of matches) {
-      const [_, value, unit] = match.match(/(\d+)\s*(year|years|monht|months|day|days)/i);
+      const [, value, unit] = match.match(/(\d+)\s*(year|years?|month|months?|day|days?)/i);
       const numValue = parseInt(value, 10);
       
+      let multiplier;
       switch (unit.toLowerCase()) {
         case 'year':
         case 'years':
-          durationYears += numValue;
+          multiplier = 31536000000; // Milliseconds in a year
           break;
-        case 'monht':
+        case 'month':
         case 'months':
-          durationMonths += numValue;
+          multiplier = 2592000000; // Milliseconds in a month (approximate)
           break;
         case 'day':
         case 'days':
-          durationDays += numValue;
+          multiplier = 86400000; // Milliseconds in a day
           break;
       }
+      
+      totalMilliseconds += numValue * multiplier;
     }
+    
+    // Sumar los milisegundos totales a la fecha de inicio
+    const fechaFin = new Date(inicioDate.getTime() + totalMilliseconds);
+    
+    // Formatear la fecha en ISO 8601
+    return fechaFin.toISOString();
   }
-
-  // Calcular la fecha de fin
-  let fechaFin = new Date(inicioDate);
-
-  if (durationYears > 0) {
-    fechaFin.setFullYear(fechaFin.getFullYear() + durationYears);
-  }
-  if (durationMonths > 0) {
-    fechaFin.setMonth(fechaFin.getMonth() + durationMonths);
-  }
-  if (durationDays > 0) {
-    fechaFin.setDate(fechaFin.getDate() + durationDays);
-  }
-
-  // Formatear la fecha en ISO 8601
-  const fechaFinIso = fechaFin.toISOString();
-  return fechaFinIso;
+  
+  // Si no se encuentra ninguna unidad de tiempo válida, devolver la fecha original
+  return inicio;
 };
 
 export default calcularFechaFin;

@@ -3,6 +3,8 @@ import Factura from "../models/Factura.js";
 
 const crearFactura = async (req, res) => {
   const { _id, numeroDictamen, monto } = req.body;
+   // Convertir monto a número
+   const montoNumber = Number(monto);
   try {
     const factura = await Factura.findOne({ contratoId: _id, numeroDictamen });
     if (factura) {
@@ -13,20 +15,21 @@ const crearFactura = async (req, res) => {
     await Factura.create({
       contratoId: _id,
       numeroDictamen,
-      monto,
+      monto:montoNumber,
     });
     const contrato = await Contrato.findByIdAndUpdate(
       _id, // El ID del contrato que quieres actualizar
       {
         $push: {
           // Usa $push para agregar un nuevo elemento al array
-          factura: { numeroDictamen }, // El nuevo objeto que deseas agregar
+          factura: { numeroDictamen , monto:montoNumber }, // El nuevo objeto que deseas agregar
         },
       },
       { new: true } // Opcional: devuelve el documento actualizado
     );
-    contrato.valorGastado = contrato.valorGastado + monto;
-    contrato.valorDisponible = contrato.valorDisponible - monto;
+  
+    contrato.valorGastado = contrato.valorGastado + montoNumber;
+    contrato.valorDisponible = contrato.valorDisponible - montoNumber;
     await contrato.save();
     return res.status(200).json({ msg: "Se ah agregado una nueva factura" });
   } catch (error) {
@@ -35,16 +38,37 @@ const crearFactura = async (req, res) => {
   }
 };
 
-const advertenciamonto = async (req, res) => {
+const advertenciamontoCrear = async (req, res) => {
   const { _id, monto } = req.body;
   try {
     const contrato = await Contrato.findById(_id);
     if (contrato.valorDisponible < monto) {
       return res.status(400).json({
         msg: "No hay suficiente valor disponible para registrar esta factura",
+      success:false
       });
     } else {
-      return res.status(200).json({ msg: "Monto accesible" });
+      return res.status(200).json({ msg: "Monto accesible",success:true });
+    }
+  } catch (error) {
+    console.error("Ha ocurrido un error al verificar el monto:", error);
+    return res
+      .status(500)
+      .json({ msg: "Error al intentar verificar el monto " });
+  }
+};
+const advertenciamontoModificar = async (req, res) => {
+  const { _id, monto } = req.body;
+  try {
+    const contrato = await Contrato.findById(_id);
+    const valorDisponibleReal = contrato.factura.monto + contrato.valorDisponible;
+    if (valorDisponibleReal < monto) {
+      return res.status(400).json({
+        msg: "No hay suficiente valor disponible para registrar esta factura",
+      success:false
+      });
+    } else {
+      return res.status(200).json({ msg: "Monto accesible",success:true });
     }
   } catch (error) {
     console.error("Ha ocurrido un error al verificar el monto:", error);
@@ -55,7 +79,7 @@ const advertenciamonto = async (req, res) => {
 };
 const visualizaFactura = async (req, res) => {
   const { numeroDictamen } = req.body;
-  console.log(numeroDictamen);
+  
   try {
     const factura = await Factura.findOne({ numeroDictamen });
     if (!factura) {
@@ -72,6 +96,7 @@ const visualizaFactura = async (req, res) => {
 
 const modificarFactura = async (req, res) => {
   const { numeroDictamen, newNumeroDictamen, monto } = req.body;
+  
   try {
     const factura = await Factura.findOne({ numeroDictamen });
 
@@ -82,7 +107,7 @@ const modificarFactura = async (req, res) => {
     }
     const contrato = await Contrato.findOne({ _id: factura.contratoId });
 
-    if (newNumeroDictamen) {
+    if (newNumeroDictamen && newNumeroDictamen!==numeroDictamen) {
       const exitenew = await Factura.findOne({
         numeroDictamen: newNumeroDictamen,
       });
@@ -94,10 +119,12 @@ const modificarFactura = async (req, res) => {
       }
     }
     if (monto && newNumeroDictamen) {
+    
       if (factura.monto > monto) {
         const diferencia = factura.monto - monto;
         contrato.valorDisponible += diferencia;
         contrato.valorGastado -= diferencia;
+        
       } else {
         const diferencia = monto - factura.monto;
         contrato.valorDisponible -= diferencia;
@@ -107,6 +134,7 @@ const modificarFactura = async (req, res) => {
         (factura) => factura.numeroDictamen === numeroDictamen
       );
       facturaEncontrada.numeroDictamen = newNumeroDictamen;
+      facturaEncontrada.monto = monto;
       factura.numeroDictamen = newNumeroDictamen;
       factura.monto = monto;
       await contrato.save();
@@ -147,9 +175,9 @@ const modificarFactura = async (req, res) => {
 const eliminarFactura = async (req, res) => {
   try {
     const { numeroDictamen } = req.query; // Obtenemos el número de dictamen desde los query parameters
-
+    const{contratoId}=req.params;
     // Buscamos la factura por número de dictamen
-    const factura = await Factura.findOne({ numeroDictamen });
+    const factura = await Factura.findOne({ numeroDictamen,contratoId });
     if (!factura) {
       return res.status(404).json({ msg: "Factura no encontrada" });
     }
@@ -185,5 +213,6 @@ export {
   modificarFactura,
   visualizaFactura,
   eliminarFactura,
-  advertenciamonto,
+  advertenciamontoCrear,
+  advertenciamontoModificar
 };
