@@ -42,7 +42,7 @@ const registrar = async (req, res) => {
       await perfil.save();
     }
 
-    res.json({ msg: "Usuario registrado correctamente" });
+    res.json({ msg: "Usuario registrado exitosamente" });
   } catch (error) {
     console.log(error);
     res.status(500).json({ msg: "Error al registrar el usuario" });
@@ -154,7 +154,7 @@ const autenticar = async (req, res) => {
   if (passwordCorrecta) {
     // Comprobar si el usuario está confirmado
     if (usuario.tipo_usuario === "Sin Asignar") {
-      const error = new Error("Su cuenta no tiene los permisos asignados");
+      const error = new Error("Su cuenta no puede acceder al sistema sin los permisos correspondientes");
       return res.status(403).json({ msg: error.message });
     }
     // Autenticar
