@@ -184,7 +184,7 @@ const olvidePassword = async (req, res) => {
     const error = new Error("El usuario no existe");
     return res.status(400).json({ msg: error.message });
   }
-
+ console.log('aqui')
   try {
     existeUsuario.token = generarId();
     await existeUsuario.save();
@@ -194,10 +194,10 @@ const olvidePassword = async (req, res) => {
       nombre: existeUsuario.nombre,
       token: existeUsuario.token,
     });
-    res.json({ msg: "Hemos enviado un correo con las instrucciones" });
+    return res.status(200).json({ msg: "Hemos enviado un correo con las instrucciones" });
   } catch (error) {
     console.log(error);
-    res
+    return res
       .status(500)
       .json({ msg: "Error al procesar la solicitud de olvidar contraseña" });
   }
