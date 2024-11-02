@@ -43,7 +43,9 @@ cron.schedule(dailyTask.schedule, dailyTask.task);
 
 console.log('Cron task started successfully');
 
-
+app.get('/', (req, res) => {
+  res.send('Hola desde el backend!');
+});
 connectDB()
   .then(() => console.log("Conexión a la base de datos establecida con éxito."))
   .catch((err) =>
