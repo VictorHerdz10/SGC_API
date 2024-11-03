@@ -12,6 +12,7 @@ import {
   asignarRoles,
   actualizarPerfil,
   passchange,
+  ponerToken,
 } from "../controllers/usuarioController.js";
 import checkAuth from "../middleware/authMiddleware.js";
 import upload from "../middleware/uploadImg.js";
@@ -33,5 +34,6 @@ router.post("/cambiar-password",checkAuth,passchange);
 router.get("/obtener-usuarios",checkAuth,visualizarusuarios);
 router.delete("/eliminar-usuario/:id",checkAuth,eliminarUsuario);
 router.post("/asignar-rol",checkAuth,asignarRoles);
+router.post("/poner-token",checkAuth,ponerToken);
 
 export default router;

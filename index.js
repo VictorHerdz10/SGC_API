@@ -10,7 +10,6 @@ import entidadRoutes from "./routes/entidadRoutes.js";
 import direccionRoutes from "./routes/direccionRoutes.js";
 import bodyParser from "body-parser";
 import fs from "fs/promises";
-import dbx from "./config/dbx.js";
 import cron from 'node-cron';
 import dailyTask from "./config/config-con.js";
 
@@ -27,17 +26,7 @@ const __dirname = path.dirname(__filename);
 const publicDir = path.join(__dirname, "public");
 app.use(express.static(publicDir));
 // Configura el cliente de Dropbox
-dbx
-  .filesListFolder({ path: "" })
-  .then((metadata) => {
-    console.log("Gestor de Archivos activo");
-  })
-  .catch((error) => {
-    console.error(
-      "Error al obtener información del gestor  de archivos:",
-      error
-    );
-  });
+
   // Arrancar la tarea cron al iniciar la aplicación
 cron.schedule(dailyTask.schedule, dailyTask.task);
 
@@ -60,7 +49,7 @@ connectDB()
   }
   }
 
-app.use(cors(corsOptions));
+app.use(cors('*'));
 app.use("/api/usuario", usuarioRoutes);
 app.use("/api/contratos", registrosContratosRoutes);
 app.use("/api/facturas", facturasRoutes);

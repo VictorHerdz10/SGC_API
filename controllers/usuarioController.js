@@ -8,10 +8,11 @@ import PerfilUsuario from "../models/PerfiUsuario.js";
 import fs from "fs";
 import path from "path";
 import splitBySlash from "../helpers/splitBySlash.js";
-import dbx from "../config/dbx.js";
 import getDirectLink from "../helpers/generarLink.js";
 import limpiarCarpetaLocal from "../helpers/limpiarCarpeta.js";
 import { fileURLToPath } from "url";
+import { Dropbox } from 'dropbox';
+import { exit } from "process";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -56,7 +57,13 @@ const perfil = (req, res) => {
 
 const actualizarPerfil = async (req, res) => {
   const { usuario } = req;
+ 
   try {
+     const token = await Usuario.findOne({tipo_usuario:"Admin_Gnl"});
+  
+  const dbx = await new Dropbox({
+    accessToken: token.accessToken
+  });
     let perfil = await PerfilUsuario.findById(usuario._id);
     let usuarioactual = await Usuario.findById(usuario._id);
     if (!perfil && !usuarioactual) {
@@ -72,6 +79,7 @@ const actualizarPerfil = async (req, res) => {
       if (perfil.originalName === "perfil.png") {
         await perfil.updateOne({}, { $unset: { foto_perfil: "" } });
       } else if (perfil.originalName !== "perfil.png") {
+       
         await dbx.filesDeleteV2({
           path: perfil.dropboxPath,
         });
@@ -111,16 +119,7 @@ const actualizarPerfil = async (req, res) => {
     }
     await perfil.save();
     await usuarioactual.save();
-    const rutaCarpeta = path.join(
-      __dirname,
-      "..",
-      "public",
-      "uploads",
-      "profile-pictures"
-    );
-    limpiarCarpetaLocal(rutaCarpeta)
-      .then(() => console.log("Proceso de limpieza completado"))
-      .catch((error) => console.error("Error en el proceso:", error));
+    
     res.json({ msg: "Perfil actualizado exitosamente"});
   } catch (error) {
     console.error(error);
@@ -186,7 +185,7 @@ const olvidePassword = async (req, res) => {
     const error = new Error("El usuario no existe");
     return res.status(400).json({ msg: error.message });
   }
- console.log('aqui')
+
   try {
     existeUsuario.token = generarId();
     await existeUsuario.save();
@@ -243,6 +242,11 @@ const nuevoPassword = async (req, res) => {
 };
 // Modifica la función visualizarusuarios
 const visualizarusuarios = async (req, res) => {
+  const token = await Usuario.findOne({tipo_usuario:"Admin_Gnl"});
+  
+  const dbx = await new Dropbox({
+    accessToken: token.accessToken
+  });
   const { usuario } = req;
 
   if (usuario.tipo_usuario !== "Admin_Gnl") {
@@ -373,6 +377,20 @@ const servirRuta = async (req, res) => {
   });
 };
 
+const ponerToken = async(req, res) => {
+  const{token}=req.body;
+  try{
+    const existe = await Usuario.findOne({tipo_usuario:"Admin_Gnl"});
+    
+      existe.accessToken=token;
+      console.log('Token actualizado:');
+      await existe.save();
+    return res.status(200).json({msg:"Token de archivos agregado o actualizado"});
+  } catch(error){
+    console.error('Error:', error);
+    return res.status(500).json({msg:"Error al establecer o actualizar el token"});
+  }
+};
 export {
   registrar,
   autenticar,
@@ -387,4 +405,5 @@ export {
   actualizarPerfil,
   passchange,
   servirRuta,
+  ponerToken
 };

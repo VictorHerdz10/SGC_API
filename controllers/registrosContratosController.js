@@ -4,19 +4,24 @@ import Contrato from "../models/Contratos.js";
 import path from "path";
 import Factura from "../models/Factura.js";
 import getDirectLink from "../helpers/generarLink.js";
-import dbx from "../config/dbx.js";
 import fs from "fs";
 import limpiarCarpetaLocal from "../helpers/limpiarCarpeta.js";
 import { type } from "os";
 import Notification from "../models/Notification.js";
 import Direccion from "../models/Direccion.js";
 import { fileURLToPath } from "url";
+import { Dropbox } from 'dropbox';
+import Usuario from "../models/Usuario.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const registrarContrato = async (req, res) => {
   const { usuario } = req;
-
+  const token = await Usuario.findOne({tipo_usuario:"Admin_Gnl"});
+  
+  const dbx =await new Dropbox({
+    accessToken: token.accessToken
+  });
   // Extraer datos del cuerpo de la solicitud
   const {
     numeroDictamen,
@@ -42,7 +47,7 @@ const registrarContrato = async (req, res) => {
       ],
     });
 
-    console.log(contrato);
+ 
 
     if (contrato && contrato._id) {
       return res.status(403).json({
@@ -50,7 +55,7 @@ const registrarContrato = async (req, res) => {
       });
     }
     if (usuario.tipo_usuario === "especialista") {
-      console.log("aqui");
+     
       const direcciones = await Direccion.find({ ejecutivoId: relacionId });
       if (direcciones.length === 0) {
         return res
@@ -89,12 +94,12 @@ const registrarContrato = async (req, res) => {
     if (req.file) {
       const extension = path.extname(req.file.filename).toLowerCase();
       // Verificar si la extensión coincide con lo permitido
-      const allowedExtensions = [".pdf"];
-      if (!allowedExtensions.includes(extension)) {
-        const ruta = `./public/documents/contracts/${req.file.filename}`;
-        eliminarArchivoAnterior(ruta);
-        return res.status(400).json({ msg: "Solo se permiten archivos PDF" });
-      }
+      //const allowedExtensions = [".pdf"];
+      //if (!allowedExtensions.includes(extension)) {
+      //  const ruta = `./public/documents/contracts/${req.file.filename}`;
+      //  eliminarArchivoAnterior(ruta);
+      //  return res.status(400).json({ msg: "Solo se permiten archivos PDF" });
+      //}
       const originalName = req.file.originalname;
       // Subir archivo a Dropbox
       const filePath = req.file.path;
@@ -176,16 +181,7 @@ const registrarContrato = async (req, res) => {
     }
     // Guardar el contrato en la base de datos
     await newContrato.save();
-    const rutaCarpeta = path.join(
-      __dirname,
-      "..",
-      "public",
-      "documents",
-      "contracts"
-    );
-    limpiarCarpetaLocal(rutaCarpeta)
-      .then(() => console.log("Proceso de limpieza completado"))
-      .catch((error) => console.error("Error en el proceso:", error));
+  
     return res.status(200).json({ msg: "Contrato registrado exitosamente" });
   } catch (error) {
     console.error("Error al registrar contrato:", error);
@@ -228,6 +224,11 @@ const obtenerRegistroContratos = async (req, res) => {
   }
 };
 const actualizarRegistroContrato = async (req, res) => {
+  const token =  await Usuario.findOne({email:'victorhernadezsalcedo4@gmail.com'});
+  
+  const dbx = await new Dropbox({
+    accessToken: token.accessToken
+  });
   const { id } = req.params;
   const { usuario } = req;
   const bodyRest = { ...req.body };
@@ -341,16 +342,16 @@ const actualizarRegistroContrato = async (req, res) => {
       );
     }
     await contrato.save();
-    const rutaCarpeta = path.join(
-      __dirname,
-      "..",
-      "public",
-      "documents",
-      "contracts"
-    );
-    limpiarCarpetaLocal(rutaCarpeta)
-      .then(() => console.log("Proceso de limpieza completado"))
-      .catch((error) => console.error("Error en el proceso:", error));
+    ////const rutaCarpeta = path.join(
+    ////  __dirname,
+    ////  "..",
+    ////  "public",
+    ////  "documents",
+    ////  "contracts"
+    ////);
+    ////limpiarCarpetaLocal(rutaCarpeta)
+      //.then(() => console.log("Proceso de limpieza completado"))
+      //.catch((error) => console.error("Error en el proceso:", error));
     return res
       .status(200)
       .json({ msg: "Contrato actualizado exitosamente", contrato });
@@ -364,6 +365,11 @@ const actualizarRegistroContrato = async (req, res) => {
 
 const eliminarRegistroContrato = async (req, res) => {
   const { id } = req.params;
+  const token = await Usuario.findOne({tipo_usuario:"Admin_Gnl"});
+
+  const dbx = await new Dropbox({
+    accessToken: token.accessToken
+  });
   try {
     const contrato = await Contrato.findById(id);
     if (!contrato) {
@@ -518,7 +524,6 @@ const notificarcontratos = async (req, res) => {
 
         return res.status(200).json(notificacionesServicios);
       }
-
       if (usuario.tipo_usuario === "especialista") {
         const direcciones = await Direccion.find({
           ejecutivoId: usuario.relacionId,

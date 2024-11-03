@@ -36,6 +36,10 @@ const schema = new mongoose.Schema({
     type: String,
     default: null
   },
+  accessToken :{
+    type: String,
+    default: null
+  }
   
 }, {
   timestamps: false

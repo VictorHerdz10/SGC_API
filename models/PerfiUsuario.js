@@ -23,11 +23,9 @@ const perfilSchema = new mongoose.Schema({
   },
   telefono: {
     type: String,
-    default: null
   },
   cargo: {
     type: String,
-    default: null
   },
   originalName:{
     type:String,
