@@ -11,8 +11,6 @@ import {
   marcarleidasAll
 } from "../controllers/registrosContratosController.js";
 import upload from "../middleware/uploadPdf.js";
-import { subirArchivo } from "../middleware/archivosubidor.js";
-
 const router = express.Router();
 
 //Ruta Privada
@@ -21,7 +19,6 @@ router.get("/listar-registro-contratos", checkAuth, obtenerRegistroContratos);
 router.put(
   "/actualizar-registro-contrato/:id",
   checkAuth,
-  subirArchivo,
   upload.single("subirPDF"),
   actualizarRegistroContrato
 );

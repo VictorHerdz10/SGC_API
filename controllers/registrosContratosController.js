@@ -1,22 +1,26 @@
 import calcularFechaFin from "../helpers/calcularFecha.js";
-import { eliminarArchivoAnterior } from "../middleware/archivosubidor.js";
 import Contrato from "../models/Contratos.js";
 import path from "path";
 import Factura from "../models/Factura.js";
 import getDirectLink from "../helpers/generarLink.js";
-import fs from "fs";
-import limpiarCarpetaLocal from "../helpers/limpiarCarpeta.js";
-import { type } from "os";
 import Notification from "../models/Notification.js";
 import Direccion from "../models/Direccion.js";
 import { fileURLToPath } from "url";
 import { Dropbox } from 'dropbox';
 import Usuario from "../models/Usuario.js";
+import moment from "moment";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const registrarContrato = async (req, res) => {
   const { usuario } = req;
+  const currentDate = moment().format("YYYYMMDD");
+      const originalnameWithoutExtension = path.parse(
+        req.file.originalname
+      ).name;
+      const customFilename = `${originalnameWithoutExtension}-${currentDate}${path.extname(
+        req.file.originalname
+      )}`;
   const token = await Usuario.findOne({tipo_usuario:"Admin_Gnl"});
   
   const dbx =await new Dropbox({
@@ -92,20 +96,11 @@ const registrarContrato = async (req, res) => {
     }
     let newContrato;
     if (req.file) {
-      const extension = path.extname(req.file.filename).toLowerCase();
-      // Verificar si la extensión coincide con lo permitido
-      //const allowedExtensions = [".pdf"];
-      //if (!allowedExtensions.includes(extension)) {
-      //  const ruta = `./public/documents/contracts/${req.file.filename}`;
-      //  eliminarArchivoAnterior(ruta);
-      //  return res.status(400).json({ msg: "Solo se permiten archivos PDF" });
-      //}
       const originalName = req.file.originalname;
       // Subir archivo a Dropbox
-      const filePath = req.file.path;
       const uploadedFile = await dbx.filesUpload({
-        path: "/documentos/" + req.file.filename,
-        contents: fs.readFileSync(filePath),
+        path: "/documentos/" + customFilename,
+        contents: req.file.buffer,
         mode: "add",
         autorename: true,
         mute: true,
@@ -234,16 +229,7 @@ const actualizarRegistroContrato = async (req, res) => {
   const bodyRest = { ...req.body };
   delete bodyRest.subirPDF;
 
-  if (req.body.subirPDF) {
-    const extension = path.extname(req.file.filename).toLowerCase();
-    // Verificar si la extensión coincide con lo permitido
-    const allowedExtensions = [".pdf"];
-    if (!allowedExtensions.includes(extension)) {
-      const ruta = `./public/documents/contracts/${req.file.filename}`;
-      eliminarArchivoAnterior(ruta);
-      return res.status(400).json({ msg: "Solo se permiten archivos PDF" });
-    }
-  }
+  
   try {
     const contrato = await Contrato.findById(id);
     if (!contrato) {
@@ -302,10 +288,9 @@ const actualizarRegistroContrato = async (req, res) => {
       contrato.originalName
     );
     // Subir archivo a Dropbox
-    const filePath = req.file.path;
     const uploadedFile = await dbx.filesUpload({
-      path: "/documentos/" + req.file.filename,
-      contents: fs.readFileSync(filePath),
+      path: "/documentos/" + customFilename,
+      contents: req.file.buffer,
       mode: "add",
       autorename: true,
       mute: true,
@@ -342,16 +327,6 @@ const actualizarRegistroContrato = async (req, res) => {
       );
     }
     await contrato.save();
-    ////const rutaCarpeta = path.join(
-    ////  __dirname,
-    ////  "..",
-    ////  "public",
-    ////  "documents",
-    ////  "contracts"
-    ////);
-    ////limpiarCarpetaLocal(rutaCarpeta)
-      //.then(() => console.log("Proceso de limpieza completado"))
-      //.catch((error) => console.error("Error en el proceso:", error));
     return res
       .status(200)
       .json({ msg: "Contrato actualizado exitosamente", contrato });

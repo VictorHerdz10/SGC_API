@@ -5,14 +5,11 @@ import generarJWT from "../helpers/generarJWT.js";
 import generarId from "../helpers/generarId.js";
 import emailOlvidePassword from "../helpers/emailOlvidePassword.js";
 import PerfilUsuario from "../models/PerfiUsuario.js";
-import fs from "fs";
 import path from "path";
-import splitBySlash from "../helpers/splitBySlash.js";
 import getDirectLink from "../helpers/generarLink.js";
-import limpiarCarpetaLocal from "../helpers/limpiarCarpeta.js";
 import { fileURLToPath } from "url";
-import { Dropbox } from 'dropbox';
-import { exit } from "process";
+import { Dropbox } from "dropbox";
+import moment from "moment";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,7 +33,10 @@ const registrar = async (req, res) => {
       tipo_usuario: usuario.tipo_usuario,
     });
     await perfil.save();
-    if (email === "gsanchez@uci.cu" || email==='victorhernandezsalcedo4@gmail.com') {
+    if (
+      email === "gsanchez@uci.cu" ||
+      email === "victorhernandezsalcedo4@gmail.com"
+    ) {
       usuario.tipo_usuario = "Admin_Gnl";
       perfil.tipo_usuario = "Admin_Gnl";
       await usuario.save();
@@ -57,13 +57,13 @@ const perfil = (req, res) => {
 
 const actualizarPerfil = async (req, res) => {
   const { usuario } = req;
- 
+
   try {
-     const token = await Usuario.findOne({tipo_usuario:"Admin_Gnl"});
-  
-  const dbx = await new Dropbox({
-    accessToken: token.accessToken
-  });
+    const token = await Usuario.findOne({ tipo_usuario: "Admin_Gnl" });
+
+    const dbx = await new Dropbox({
+      accessToken: token.accessToken,
+    });
     let perfil = await PerfilUsuario.findById(usuario._id);
     let usuarioactual = await Usuario.findById(usuario._id);
     if (!perfil && !usuarioactual) {
@@ -73,13 +73,12 @@ const actualizarPerfil = async (req, res) => {
     // Actualizar información del perfil
     perfil = Object.assign(perfil, req.body);
     usuarioactual = Object.assign(usuario, req.body);
-  
+
     // Si se envió una imagen, actualizar la URL de la foto de perfil
     if (req.file) {
       if (perfil.originalName === "perfil.png") {
         await perfil.updateOne({}, { $unset: { foto_perfil: "" } });
       } else if (perfil.originalName !== "perfil.png") {
-       
         await dbx.filesDeleteV2({
           path: perfil.dropboxPath,
         });
@@ -93,10 +92,17 @@ const actualizarPerfil = async (req, res) => {
       }
 
       // Subir archivo a Dropbox
-      const filePath = req.file.path;
+      const currentDate = moment().format("YYYYMMDD");
+      const originalnameWithoutExtension = path.parse(
+        req.file.originalname
+      ).name;
+      const customFilename = `${originalnameWithoutExtension}-${currentDate}${path.extname(
+        req.file.originalname
+      )}`;
+
       const uploadedFile = await dbx.filesUpload({
-        path: "/uploads/" + req.file.filename,
-        contents: fs.readFileSync(filePath),
+        path: "/uploads/" + customFilename,
+        contents: req.file.buffer,
         mode: "add",
         autorename: true,
         mute: true,
@@ -119,8 +125,8 @@ const actualizarPerfil = async (req, res) => {
     }
     await perfil.save();
     await usuarioactual.save();
-    
-    res.json({ msg: "Perfil actualizado exitosamente"});
+
+    res.json({ msg: "Perfil actualizado exitosamente" });
   } catch (error) {
     console.error(error);
     res.status(500).json({ msg: "Error al actualizar el perfil" });
@@ -153,7 +159,9 @@ const autenticar = async (req, res) => {
   if (passwordCorrecta) {
     // Comprobar si el usuario está confirmado
     if (usuario.tipo_usuario === "Sin Asignar") {
-      const error = new Error("Su cuenta no puede acceder al sistema sin los permisos correspondientes");
+      const error = new Error(
+        "Su cuenta no puede acceder al sistema sin los permisos correspondientes"
+      );
       return res.status(403).json({ msg: error.message });
     }
     // Autenticar
@@ -195,7 +203,9 @@ const olvidePassword = async (req, res) => {
       nombre: existeUsuario.nombre,
       token: existeUsuario.token,
     });
-    return res.status(200).json({ msg: "Hemos enviado un correo con las instrucciones" });
+    return res
+      .status(200)
+      .json({ msg: "Hemos enviado un correo con las instrucciones" });
   } catch (error) {
     console.log(error);
     return res
@@ -242,11 +252,6 @@ const nuevoPassword = async (req, res) => {
 };
 // Modifica la función visualizarusuarios
 const visualizarusuarios = async (req, res) => {
-  const token = await Usuario.findOne({tipo_usuario:"Admin_Gnl"});
-  
-  const dbx = await new Dropbox({
-    accessToken: token.accessToken
-  });
   const { usuario } = req;
 
   if (usuario.tipo_usuario !== "Admin_Gnl") {
@@ -321,17 +326,16 @@ const asignarRoles = async (req, res) => {
     perfilAsignar.tipo_usuario = rol;
     await perfilAsignar.save();
     await usuarioasignar.save();
-    if(rol==='especialista'){
+    if (rol === "especialista") {
       const relacionConDirector = await Usuario.findById(req.body.directorId);
-      
-      if(!relacionConDirector){
-        return res.status(404).json({ msg: "Director no encontrado" });
-        }
-        const especialistaRelacionado = await Usuario.findById(id);
-        especialistaRelacionado.relacionId = relacionConDirector._id;
-        await especialistaRelacionado.save();
-        return res.json({ msg: "Rol y permisos asignado  correctamente" });
 
+      if (!relacionConDirector) {
+        return res.status(404).json({ msg: "Director no encontrado" });
+      }
+      const especialistaRelacionado = await Usuario.findById(id);
+      especialistaRelacionado.relacionId = relacionConDirector._id;
+      await especialistaRelacionado.save();
+      return res.json({ msg: "Rol y permisos asignado  correctamente" });
     }
 
     return res.json({ msg: "Rol asignado correctamente" });
@@ -342,7 +346,6 @@ const asignarRoles = async (req, res) => {
 };
 
 const passchange = async (req, res) => {
- 
   const { usuario } = req;
   const { password, newpassword } = req.body;
   try {
@@ -362,33 +365,24 @@ const passchange = async (req, res) => {
     return res.status(500).json({ msg: "Error al cambiar contraseña" });
   }
 };
-const servirRuta = async (req, res) => {
-  const { id } = req.params;
-  const usuario = await PerfilUsuario.findById(id);
-  const ruta = splitBySlash(usuario.foto_perfil);
-  // Ruta absoluta directa
-  const fullPath = `D:\\Victor\\tesis\\app\\backend\\public\\${ruta}`;
- 
-  res.sendFile(fullPath, (err) => {
-    if (err) {
-      console.error("Error al intentar servir el archivo:", err);
-      res.status(404).send("Imagen no encontrada");
-    }
-  });
-};
 
-const ponerToken = async(req, res) => {
-  const{token}=req.body;
-  try{
-    const existe = await Usuario.findOne({tipo_usuario:"Admin_Gnl"});
-    
-      existe.accessToken=token;
-      console.log('Token actualizado:');
-      await existe.save();
-    return res.status(200).json({msg:"Token de archivos agregado o actualizado"});
-  } catch(error){
-    console.error('Error:', error);
-    return res.status(500).json({msg:"Error al establecer o actualizar el token"});
+const ponerToken = async (req, res) => {
+  const { token } = req.body;
+  try {
+    const existe = await Usuario.findOne({ tipo_usuario: "Admin_Gnl" });
+
+    existe.accessToken = token;
+    console.log("Token actualizado:");
+    await existe.save();
+    console.log(existe);
+    return res
+      .status(200)
+      .json({ msg: "Token de archivos agregado o actualizado" });
+  } catch (error) {
+    console.error("Error:", error);
+    return res
+      .status(500)
+      .json({ msg: "Error al establecer o actualizar el token" });
   }
 };
 export {
@@ -404,6 +398,5 @@ export {
   asignarRoles,
   actualizarPerfil,
   passchange,
-  servirRuta,
-  ponerToken
+  ponerToken,
 };
