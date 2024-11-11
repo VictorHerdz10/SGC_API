@@ -260,16 +260,9 @@ const actualizarRegistroContrato = async (req, res) => {
     }
 
     if (!req.file) {
-      await contrato.updateOne(
-        {
-          $set: bodyRest,
-          "info.modificadoPor": usuario.nombre,
-          "info.fechaDeModificacion": new Date().toISOString(),
-        },
-        {
-          new: true,
-        }
-      );
+      contrato.info.modificadoPor=usuario.nombre;
+      contrato.info.fechaDeModificacion=new Date().toISOString();
+      await contrato.save();
       if (req.body.valor) {
         contrato.valorDisponible = req.body.valor - contrato.valorGastado;
       }
@@ -284,15 +277,16 @@ const actualizarRegistroContrato = async (req, res) => {
         .status(200)
         .json({ msg: "Contrato actualizado exitosamente", contrato });
     }
+    const originalName = req.file.originalname;
  if(contrato.dropboxPath){
     await dbx.filesDeleteV2({
       path: contrato.dropboxPath,
-    });}
+    });
 
     console.log(
       "Archivo existente eliminado de la nube:",
       contrato.originalName
-    );
+    );}
     // Subir archivo a Dropbox
     const uploadedFile = await dbx.filesUpload({
       path: "/documentos/" + customFilename,
@@ -312,16 +306,13 @@ const actualizarRegistroContrato = async (req, res) => {
       },
     });
     const link = getDirectLink(publicLink.result.url);
-
-    await contrato.updateOne(
-      {
-        $set: bodyRest,
-        "info.1.modificadoPor": usuario.nombre,
-        "info.1.fechaDeModificacion": new Date().toISOString(),
-      },
-      { $unset: { subirPDF: link } },
-      { new: true }
-    );
+    
+    contrato.info.modificadoPor=usuario.nombre;
+    contrato.info.fechaDeModificacion=new Date().toISOString();
+    contrato.dropboxPath = uploadedFile.result.path_display;
+    contrato.originalName = originalName;
+    contrato.subirPDF = link;
+    await contrato.save();
 
     if (req.body.valor) {
       contrato.valorDisponible = req.body.valor - contrato.valorGastado;
