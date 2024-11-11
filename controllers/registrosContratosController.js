@@ -219,9 +219,15 @@ const obtenerRegistroContratos = async (req, res) => {
   }
 };
 const actualizarRegistroContrato = async (req, res) => {
-  const token =  await Usuario.findOne({email:'victorhernadezsalcedo4@gmail.com'});
-  
-  const dbx = await new Dropbox({
+  const token = await Usuario.findOne({tipo_usuario:"Admin_Gnl"});
+  const currentDate = moment().format("YYYYMMDD");
+      const originalnameWithoutExtension = path.parse(
+        req.file.originalname
+      ).name;
+      const customFilename = `${originalnameWithoutExtension}-${currentDate}${path.extname(
+        req.file.originalname
+      )}`;
+  const dbx =await new Dropbox({
     accessToken: token.accessToken
   });
   const { id } = req.params;
@@ -278,10 +284,10 @@ const actualizarRegistroContrato = async (req, res) => {
         .status(200)
         .json({ msg: "Contrato actualizado exitosamente", contrato });
     }
-
+ if(contrato.dropboxPath){
     await dbx.filesDeleteV2({
       path: contrato.dropboxPath,
-    });
+    });}
 
     console.log(
       "Archivo existente eliminado de la nube:",
