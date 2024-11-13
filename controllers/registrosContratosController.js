@@ -6,25 +6,24 @@ import getDirectLink from "../helpers/generarLink.js";
 import Notification from "../models/Notification.js";
 import Direccion from "../models/Direccion.js";
 import { fileURLToPath } from "url";
-import { Dropbox } from 'dropbox';
+import { Dropbox } from "dropbox";
 import Usuario from "../models/Usuario.js";
 import moment from "moment";
+import parcearDate, { parcearDate3 } from "../helpers/parcearFecha.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const registrarContrato = async (req, res) => {
   const { usuario } = req;
   const currentDate = moment().format("YYYYMMDD");
-      const originalnameWithoutExtension = path.parse(
-        req.file.originalname
-      ).name;
-      const customFilename = `${originalnameWithoutExtension}-${currentDate}${path.extname(
-        req.file.originalname
-      )}`;
-  const token = await Usuario.findOne({tipo_usuario:"Admin_Gnl"});
-  
-  const dbx =await new Dropbox({
-    accessToken: token.accessToken
+  const originalnameWithoutExtension = path.parse(req.file.originalname).name;
+  const customFilename = `${originalnameWithoutExtension}-${currentDate}${path.extname(
+    req.file.originalname
+  )}`;
+  const token = await Usuario.findOne({ tipo_usuario: "Admin_Gnl" });
+
+  const dbx = await new Dropbox({
+    accessToken: token.accessToken,
   });
   // Extraer datos del cuerpo de la solicitud
   const {
@@ -51,15 +50,12 @@ const registrarContrato = async (req, res) => {
       ],
     });
 
- 
-
     if (contrato && contrato._id) {
       return res.status(403).json({
         msg: `El registro del contrato ${numeroDictamen} ya existe en la ${direccionEjecuta}`,
       });
     }
     if (usuario.tipo_usuario === "especialista") {
-     
       const direcciones = await Direccion.find({ ejecutivoId: relacionId });
       if (direcciones.length === 0) {
         return res
@@ -176,7 +172,7 @@ const registrarContrato = async (req, res) => {
     }
     // Guardar el contrato en la base de datos
     await newContrato.save();
-  
+
     return res.status(200).json({ msg: "Contrato registrado exitosamente" });
   } catch (error) {
     console.error("Error al registrar contrato:", error);
@@ -219,23 +215,17 @@ const obtenerRegistroContratos = async (req, res) => {
   }
 };
 const actualizarRegistroContrato = async (req, res) => {
-  const token = await Usuario.findOne({tipo_usuario:"Admin_Gnl"});
+  const token = await Usuario.findOne({ tipo_usuario: "Admin_Gnl" });
   const currentDate = moment().format("YYYYMMDD");
-      const originalnameWithoutExtension = path.parse(
-        req.file.originalname
-      ).name;
-      const customFilename = `${originalnameWithoutExtension}-${currentDate}${path.extname(
-        req.file.originalname
-      )}`;
-  const dbx =await new Dropbox({
-    accessToken: token.accessToken
+
+  const dbx = await new Dropbox({
+    accessToken: token.accessToken,
   });
   const { id } = req.params;
   const { usuario } = req;
   const bodyRest = { ...req.body };
   delete bodyRest.subirPDF;
 
-  
   try {
     const contrato = await Contrato.findById(id);
     if (!contrato) {
@@ -251,8 +241,7 @@ const actualizarRegistroContrato = async (req, res) => {
     if (req.body.fechaRecibido) {
       // Otra forma de obtener la fecha actual
       const fechaparce = new Date().toISOString();
-
-      if (req.body.fechaRecibido > fechaparce) {
+      if (req.body.fechaRecibido > parcearDate3(new Date(fechaparce))) {
         return res.status(400).json({
           msg: "La fecha de recepción no puede ser  mayor a la fecha actual",
         });
@@ -260,33 +249,61 @@ const actualizarRegistroContrato = async (req, res) => {
     }
 
     if (!req.file) {
-      contrato.info.modificadoPor=usuario.nombre;
-      contrato.info.fechaDeModificacion=new Date().toISOString();
-      await contrato.save();
+      contrato.info.modificadoPor = usuario.nombre;
+      contrato.info.fechaDeModificacion = new Date().toISOString();
+
       if (req.body.valor) {
         contrato.valorDisponible = req.body.valor - contrato.valorGastado;
       }
       if (req.body.fechaRecibido) {
         contrato.fechaVencimiento = calcularFechaFin(
-          contrato.fechaRecibido,
-          contrato.vigencia
+          req.body.fechaRecibido,
+          req.body.vigencia
         );
       }
+
+      contrato.tipoDeContrato =
+        req.body.tipoDeContrato || contrato.tipoDeContrato;
+      contrato.objetoDelContrato =
+        req.body.objetoDelContrato || contrato.objetoDelContrato;
+      contrato.entidad = req.body.entidad || contrato.entidad;
+      contrato.direccionEjecuta =
+        req.body.direccionEjecuta || contrato.direccionEjecuta;
+      contrato.aprobadoPorCC = req.body.aprobadoPorCC || contrato.aprobadoPorCC;
+      contrato.firmado = req.body.firmado || contrato.firmado;
+      contrato.entregadoJuridica =
+        req.body.entregadoJuridica || contrato.entregadoJuridica;
+      contrato.fechaRecibido = req.body.fechaRecibido || contrato.fechaRecibido;
+      contrato.valor = parseInt(req.body.valor) || contrato.valor;
+      contrato.valorDisponible =
+        parseInt(req.body.valorDisponible) || contrato.valorDisponible;
+      contrato.valorGastado =
+        parseInt(req.body.valorGastado) || contrato.valorGastado;
+      contrato.vigencia = req.body.vigencia || contrato.vigencia;
+      contrato.estado = req.body.estado || contrato.estado;
+      contrato.numeroDictamen =
+        req.body.numeroDictamen || contrato.numeroDictamen;
+
       await contrato.save();
       return res
         .status(200)
         .json({ msg: "Contrato actualizado exitosamente", contrato });
     }
+    const originalnameWithoutExtension = path.parse(req.file.originalname).name;
+    const customFilename = `${originalnameWithoutExtension}-${currentDate}${path.extname(
+      req.file.originalname
+    )}`;
     const originalName = req.file.originalname;
- if(contrato.dropboxPath){
-    await dbx.filesDeleteV2({
-      path: contrato.dropboxPath,
-    });
+    if (contrato.dropboxPath) {
+      await dbx.filesDeleteV2({
+        path: contrato.dropboxPath,
+      });
 
-    console.log(
-      "Archivo existente eliminado de la nube:",
-      contrato.originalName
-    );}
+      console.log(
+        "Archivo existente eliminado de la nube:",
+        contrato.originalName
+      );
+    }
     // Subir archivo a Dropbox
     const uploadedFile = await dbx.filesUpload({
       path: "/documentos/" + customFilename,
@@ -306,12 +323,33 @@ const actualizarRegistroContrato = async (req, res) => {
       },
     });
     const link = getDirectLink(publicLink.result.url);
-    
-    contrato.info.modificadoPor=usuario.nombre;
-    contrato.info.fechaDeModificacion=new Date().toISOString();
+
+    contrato.info.modificadoPor = usuario.nombre;
+    contrato.info.fechaDeModificacion = new Date().toISOString();
     contrato.dropboxPath = uploadedFile.result.path_display;
     contrato.originalName = originalName;
     contrato.subirPDF = link;
+    contrato.tipoDeContrato =
+      req.body.tipoDeContrato || contrato.tipoDeContrato;
+    contrato.objetoDelContrato =
+      req.body.objetoDelContrato || contrato.objetoDelContrato;
+    contrato.entidad = req.body.entidad || contrato.entidad;
+    contrato.direccionEjecuta =
+      req.body.direccionEjecuta || contrato.direccionEjecuta;
+    contrato.aprobadoPorCC = req.body.aprobadoPorCC || contrato.aprobadoPorCC;
+    contrato.firmado = req.body.firmado || contrato.firmado;
+    contrato.entregadoJuridica =
+      req.body.entregadoJuridica || contrato.entregadoJuridica;
+    contrato.fechaRecibido = req.body.fechaRecibido || contrato.fechaRecibido;
+    contrato.valor = parseInt(req.body.valor) || contrato.valor;
+    contrato.valorDisponible =
+      parseInt(req.body.valorDisponible) || contrato.valorDisponible;
+    contrato.valorGastado =
+      parseInt(req.body.valorGastado) || contrato.valorGastado;
+    contrato.vigencia = req.body.vigencia || contrato.vigencia;
+    contrato.estado = req.body.estado || contrato.estado;
+    contrato.numeroDictamen =
+      req.body.numeroDictamen || contrato.numeroDictamen;
     await contrato.save();
 
     if (req.body.valor) {
@@ -337,10 +375,10 @@ const actualizarRegistroContrato = async (req, res) => {
 
 const eliminarRegistroContrato = async (req, res) => {
   const { id } = req.params;
-  const token = await Usuario.findOne({tipo_usuario:"Admin_Gnl"});
+  const token = await Usuario.findOne({ tipo_usuario: "Admin_Gnl" });
 
   const dbx = await new Dropbox({
-    accessToken: token.accessToken
+    accessToken: token.accessToken,
   });
   try {
     const contrato = await Contrato.findById(id);
@@ -635,34 +673,43 @@ const marcarleidasAll = async (req, res) => {
 
 const eliminarNotificacionesArchivadas = async () => {
   try {
-    console.log("Iniciando proceso de eliminación de notificaciones archivadas");
+    console.log(
+      "Iniciando proceso de eliminación de notificaciones archivadas"
+    );
 
     const notificacionesleidas = await Notification.find({
       readByAdmin: true,
       readBySer: true,
       readByMant: true,
     });
-    console.log('Número de notificaciones encontradas:', notificacionesleidas.length);
+    console.log(
+      "Número de notificaciones encontradas:",
+      notificacionesleidas.length
+    );
 
     if (!notificacionesleidas || notificacionesleidas.length === 0) {
-      console.log('No hay notificaciones que eliminar');
+      console.log("No hay notificaciones que eliminar");
       return;
     }
 
-    console.log('Notificaciones a eliminar:', notificacionesleidas);
+    console.log("Notificaciones a eliminar:", notificacionesleidas);
 
     const resultadoEliminacion = await Notification.deleteMany({
       readByAdmin: true,
       readBySer: true,
       readByMant: true,
     });
-    console.log('Resultado de la eliminación:', resultadoEliminacion);
+    console.log("Resultado de la eliminación:", resultadoEliminacion);
 
     console.log("Notificaciones eliminadas");
-    console.log(`Número de notificaciones eliminadas: ${resultadoEliminacion.deletedCount}`);
-
+    console.log(
+      `Número de notificaciones eliminadas: ${resultadoEliminacion.deletedCount}`
+    );
   } catch (error) {
-    console.error("Ha ocurrido un error al eliminar las notificaciones leidas:", error);
+    console.error(
+      "Ha ocurrido un error al eliminar las notificaciones leidas:",
+      error
+    );
   }
 };
 
@@ -670,40 +717,41 @@ const cambiarEstado = async () => {
   try {
     // Obtener la fecha actual
     const currentDate = new Date();
-    console.log('Fecha actual:', currentDate);
+    console.log("Fecha actual:", currentDate);
 
     // Buscar todos los contratos activos que vencieron
     const contratosVencidos = await Contrato.find({
       estado: "Ejecución",
       fechaVencimiento: { $lte: currentDate },
     });
-    console.log('Contratos vencidos encontrados:', contratosVencidos.length);
+    console.log("Contratos vencidos encontrados:", contratosVencidos.length);
 
     if (!contratosVencidos || contratosVencidos.length === 0) {
-      console.log('No hay contratos vencidos');
+      console.log("No hay contratos vencidos");
       return;
     }
 
-    console.log('Contratos vencidos:', contratosVencidos);
+    console.log("Contratos vencidos:", contratosVencidos);
 
     // Actualizar el estado de los contratos vencidos
     const result = await Contrato.updateMany(
       { estado: "Ejecución", fechaVencimiento: { $lte: currentDate } },
       { $set: { estado: "Finalizado" } }
     );
-    console.log('Resultado de la actualización:', result);
+    console.log("Resultado de la actualización:", result);
 
     // Respuesta exitosa
-    console.log(`Estados de contratos actualizados. Contratos modificados: ${result.modifiedCount}`);
-    
+    console.log(
+      `Estados de contratos actualizados. Contratos modificados: ${result.modifiedCount}`
+    );
+
     // Verificar el resultado después de la actualización
     const contratosActualizados = await Contrato.find({
       estado: "Finalizado",
       fechaVencimiento: { $lte: currentDate },
     });
-    console.log('Contratos actualizados:', contratosActualizados.length);
-    console.log('Primer contrato actualizado:', contratosActualizados[0]);
-
+    console.log("Contratos actualizados:", contratosActualizados.length);
+    console.log("Primer contrato actualizado:", contratosActualizados[0]);
   } catch (error) {
     console.error("Error al actualizar estados de contratos:", error);
   }
