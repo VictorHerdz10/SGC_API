@@ -33,6 +33,9 @@ const NotificationSchema = new mongoose.Schema({
     type: Date,
     required: true
   },
+  valorDisponible:{
+    type: Number,
+  },
   create: {
     type: Date,
     default: Date.now
