@@ -16,10 +16,7 @@ const __dirname = path.dirname(__filename);
 const registrarContrato = async (req, res) => {
   const { usuario } = req;
   const currentDate = moment().format("YYYYMMDD");
-  const originalnameWithoutExtension = path.parse(req.file.originalname).name;
-  const customFilename = `${originalnameWithoutExtension}-${currentDate}${path.extname(
-    req.file.originalname
-  )}`;
+ 
   const token = await Usuario.findOne({ tipo_usuario: "Admin_Gnl" });
 
   const dbx = await new Dropbox({
@@ -92,6 +89,10 @@ const registrarContrato = async (req, res) => {
     }
     let newContrato;
     if (req.file) {
+      const originalnameWithoutExtension = path.parse(req.file.originalname).name;
+      const customFilename = `${originalnameWithoutExtension}-${currentDate}${path.extname(
+        req.file.originalname
+      )}`;
       const originalName = req.file.originalname;
       // Subir archivo a Dropbox
       const uploadedFile = await dbx.filesUpload({
