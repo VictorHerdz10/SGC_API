@@ -10,6 +10,8 @@ import getDirectLink from "../helpers/generarLink.js";
 import { fileURLToPath } from "url";
 import { Dropbox } from "dropbox";
 import moment from "moment";
+import Direccion from "../models/Direccion.js";
+import Entidad from "../models/Entidad.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -69,7 +71,52 @@ const actualizarPerfil = async (req, res) => {
     if (!perfil && !usuarioactual) {
       return res.status(404).json({ msg: "Perfil y Usuario no encontrado" });
     }
+    if (req.body.nombre) {
+      // Buscar todas las direcciones asociadas al ejecutivo actual
+      const direcciones = await Direccion.find({ ejecutivoId: usuario._id });
+      const entidades = await Entidad.find({ ejecutivoId: usuario._id });
+      
+      // Actualizar cada dirección individualmente
+      if (direcciones) {
+        await Promise.all(
+          direcciones.map(async (direccion) => {
+            try {
+              const result = await Direccion.findByIdAndUpdate(
+                direccion._id,
+                { $set: { nombreEjecutivo: req.body.nombre } },
+                { new: true }
+              );
+            } catch (error) {
+              console.error(
+                `Error al actualizar dirección ${direccion._id}:`,
+                error
+              );
+              return null;
+            }
+          })
+        );
+      }
 
+      if (entidades) {
+        await Promise.all(
+          entidades.map(async (entidad) => {
+            try {
+              const result = await Entidad.findByIdAndUpdate(
+                entidad._id,
+                { $set: { nombreEjecutivo: req.body.nombre } },
+                { new: true }
+              );
+            } catch (error) {
+              console.error(
+                `Error al actualizar dirección ${entidad._id}:`,
+                error
+              );
+              return null;
+            }
+          })
+        );
+      }
+    }
     // Actualizar información del perfil
     perfil = Object.assign(perfil, req.body);
     usuarioactual = Object.assign(usuario, req.body);

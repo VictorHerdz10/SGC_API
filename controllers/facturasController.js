@@ -6,11 +6,17 @@ const crearFactura = async (req, res) => {
    // Convertir monto a número
    const montoNumber = Number(monto);
   try {
-    const factura = await Factura.findOne({ contratoId: _id, numeroDictamen });
-    if (factura) {
-      return res.status(400).json({
-        msg: `Ya existe una factura asociada a este contrato, con este numero de dictamen ${numeroDictamen}`,
-      });
+    const facturas = await Factura.find();
+    if (facturas) {
+      // Parcializar todas las direcciones existentes y la dirección del cuerpo
+      const todasLasfacturasParceadas = facturas.map(factura =>
+        factura.numeroDictamen.normalize('NFD').replace(/[\u0300-\u034F]/g, "").toLowerCase().trim()
+      );
+      const facturaParceadaDelBody = numeroDictamen.normalize('NFD').replace(/[\u0300-\u034F]/g, "").toLowerCase().trim();
+      // Verificar si la dirección del body existe en la lista parcializada de direcciones
+      if (todasLasfacturasParceadas.includes(facturaParceadaDelBody)) {
+        return res.status(400).json({ msg: 'La factura ya existe' });
+    }
     }
     await Factura.create({
       contratoId: _id,
