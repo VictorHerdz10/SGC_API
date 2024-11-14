@@ -390,6 +390,10 @@ const eliminarRegistroContrato = async (req, res) => {
     if (facturas.length > 0) {
       await Factura.deleteMany({ contratoId: id });
     }
+    const notificaciones = await Notification.findOne({contratoId:id});
+    if (notificaciones) {
+      await Notification.deleteOne({ contratoId:id });
+    }
     if (contrato.dropboxPath) {
       await dbx.filesDeleteV2({
         path: contrato.dropboxPath,
@@ -512,9 +516,6 @@ const notificarcontratos = async (req, res) => {
     });
 
     if (!contratos || contratos.length === 0) {
-      res
-        .status(200)
-        .json({ msg: "No hay contratos por vencer en los próximos 30 días." });
       console.log("No hay contratos por vencer");
     } else {
       // Crear notificaciones para cada contrato si no existe una
@@ -523,38 +524,37 @@ const notificarcontratos = async (req, res) => {
           await createNotificationIfNotExists(id);
         })
       );
-
-      if (usuario.tipo_usuario === "director") {
-        const direcciones = await Direccion.find({ ejecutivoId: usuario._id });
-
-        const notificacionesServicios = await Notification.find({
-          direccionEjecutiva: {
-            $in: direcciones.map((direccion) => direccion.direccionEjecutiva),
-          },
-          readByDirector: false,
-        });
-
-        return res.status(200).json(notificacionesServicios);
-      }
-      if (usuario.tipo_usuario === "especialista") {
-        const direcciones = await Direccion.find({
-          ejecutivoId: usuario.relacionId,
-        });
-
-        const notificacionesServicios = await Notification.find({
-          direccionEjecutiva: {
-            $in: direcciones.map((direccion) => direccion.direccionEjecutiva),
-          },
-          readByEspecialista: false,
-        });
-
-        return res.status(200).json(notificacionesServicios);
-      }
-      const allNotification = await Notification.find({
-        readByAdmin: false,
-      });
-      return res.status(200).json(allNotification);
     }
+    if (usuario.tipo_usuario === "director") {
+      const direcciones = await Direccion.find({ ejecutivoId: usuario._id });
+
+      const notificacionesServicios = await Notification.find({
+        direccionEjecutiva: {
+          $in: direcciones.map((direccion) => direccion.direccionEjecutiva),
+        },
+        readByDirector: false,
+      });
+
+      return res.status(200).json(notificacionesServicios);
+    }
+    if (usuario.tipo_usuario === "especialista") {
+      const direcciones = await Direccion.find({
+        ejecutivoId: usuario.relacionId,
+      });
+
+      const notificacionesServicios = await Notification.find({
+        direccionEjecutiva: {
+          $in: direcciones.map((direccion) => direccion.direccionEjecutiva),
+        },
+        readByEspecialista: false,
+      });
+
+      return res.status(200).json(notificacionesServicios);
+    }
+    const allNotification = await Notification.find({
+      readByAdmin: false,
+    });
+    return res.status(200).json(allNotification);
   } catch (error) {
     console.error("Ha ocurrido un error al obtener los contratos:", error);
     return res
