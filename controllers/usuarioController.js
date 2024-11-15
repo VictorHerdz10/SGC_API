@@ -75,7 +75,7 @@ const actualizarPerfil = async (req, res) => {
       // Buscar todas las direcciones asociadas al ejecutivo actual
       const direcciones = await Direccion.find({ ejecutivoId: usuario._id });
       const entidades = await Entidad.find({ ejecutivoId: usuario._id });
-      
+
       // Actualizar cada dirección individualmente
       if (direcciones) {
         await Promise.all(
@@ -432,6 +432,48 @@ const ponerToken = async (req, res) => {
       .json({ msg: "Error al establecer o actualizar el token" });
   }
 };
+const imagen = async (req, res) => {
+  try {
+    const token = await Usuario.findOne({ tipo_usuario: "Admin_Gnl" });
+
+    const dbx = await new Dropbox({
+      accessToken: token.accessToken,
+    });
+    // Subir archivo a Dropbox
+    const currentDate = moment().format("YYYYMMDD");
+    const originalnameWithoutExtension = path.parse(
+      req.file.originalname
+    ).name;
+    const customFilename = `${originalnameWithoutExtension}-${currentDate}${path.extname(
+      req.file.originalname
+    )}`;
+
+    const uploadedFile = await dbx.filesUpload({
+      path: "/echemendia/" + customFilename,
+      contents: req.file.buffer,
+      mode: "add",
+      autorename: true,
+      mute: true,
+    });
+
+    // Obtener el link público del archivo
+    const publicLink = await dbx.sharingCreateSharedLinkWithSettings({
+      path: uploadedFile.result.path_display,
+      settings: {
+        requested_visibility: {
+          ".tag": "public",
+        },
+      },
+    });
+
+    const directImageLink = getDirectLink(publicLink.result.url);
+ return res.status(200).json(directImageLink)
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({msg:"Error de servidor en subir imagen",error})
+  }
+};
+
 export {
   registrar,
   autenticar,
@@ -446,4 +488,5 @@ export {
   actualizarPerfil,
   passchange,
   ponerToken,
+  imagen,
 };
