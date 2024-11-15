@@ -433,6 +433,7 @@ const ponerToken = async (req, res) => {
   }
 };
 const imagen = async (req, res) => {
+  if(req.file){
   try {
     const token = await Usuario.findOne({ tipo_usuario: "Admin_Gnl" });
 
@@ -471,7 +472,8 @@ const imagen = async (req, res) => {
   } catch (error) {
     console.error(error);
     return res.status(500).json({msg:"Error de servidor en subir imagen",error})
-  }
+  }}
+  return res.status(400).json({msg:"No se ha subido ninguna imagen"})
 };
 
 export {
