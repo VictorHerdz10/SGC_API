@@ -50,7 +50,7 @@ const advertenciamontoCrear = async (req, res) => {
     const contrato = await Contrato.findById(_id);
     if (contrato.valorDisponible < monto) {
       return res.status(400).json({
-        msg: "No hay suficiente valor disponible para registrar esta factura",
+        msg: "No hay suficiente presupuesto para registrar esta factura",
       success:false
       });
     } else {

@@ -106,7 +106,7 @@ const eliminarEntidad = async (req, res) => {
     }
 
     await entidadExistente.deleteOne();
-    return res.status(404).json({ msg: "Entidad eliminada con éxito " });
+    return res.status(200).json({ msg: "Entidad eliminada con éxito " });
   } catch (error) {
     return res.status(500).json({ msg: "Error al eliminar la entidad" });
   }
