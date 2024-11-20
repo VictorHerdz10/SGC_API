@@ -13,7 +13,6 @@ import {
   actualizarPerfil,
   passchange,
   ponerToken,
-  imagen
 } from "../controllers/usuarioController.js";
 import checkAuth from "../middleware/authMiddleware.js";
 import upload from "../middleware/uploadImg.js";
@@ -36,6 +35,5 @@ router.get("/obtener-usuarios",checkAuth,visualizarusuarios);
 router.delete("/eliminar-usuario/:id",checkAuth,eliminarUsuario);
 router.post("/asignar-rol",checkAuth,asignarRoles);
 router.post("/poner-token",checkAuth,ponerToken);
-router.post("/foto",upload.single('foto'),imagen);
 
 export default router;
