@@ -9,13 +9,19 @@ import facturasRoutes from "./routes/facturasRoutes.js";
 import entidadRoutes from "./routes/entidadRoutes.js";
 import direccionRoutes from "./routes/direccionRoutes.js";
 import bodyParser from "body-parser";
-import fs from "fs/promises";
+import helmet from "helmet";
 import cron from 'node-cron';
 import dailyTask from "./config/config-con.js";
 
 //Creando instancia de express
 const app = express();
 app.use(express.json());
+app.use(helmet({
+  frameguard: {
+    action: 'sameorigin'
+  }
+}));
+
 dotenv.config();
 // Middleware para parsear form-data
 app.use(bodyParser.json());
