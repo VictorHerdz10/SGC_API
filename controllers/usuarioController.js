@@ -7,14 +7,11 @@ import emailOlvidePassword from "../helpers/emailOlvidePassword.js";
 import PerfilUsuario from "../models/PerfiUsuario.js";
 import path from "path";
 import getDirectLink from "../helpers/generarLink.js";
-import { fileURLToPath } from "url";
 import { Dropbox } from "dropbox";
 import moment from "moment";
 import Direccion from "../models/Direccion.js";
 import Entidad from "../models/Entidad.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const registrar = async (req, res) => {
   const { email } = req.body;
   // Prevenir usuarios duplicados
@@ -309,11 +306,11 @@ const visualizarusuarios = async (req, res) => {
 
   try {
     const usuarios = await PerfilUsuario.find();
-    // Elimina al usuario actual de la lista
-    const filteredUsers = usuarios.filter(
-      (user) => user.tipo_usuario.toString() !== "Admin_Gnl"
-    );
-    res.json(filteredUsers);
+      // Filtrar los usuarios excluyendo los emails específicos
+const filteredUsers = usuarios.filter(user => {
+  return user.email !== "gsanchez@uci.cu" && user.email !== "victorhernandezsalcedo4@gmail.com";
+});
+    res.status(200).json(filteredUsers);
   } catch (error) {
     console.error(error);
     res.status(500).json({ msg: "Error al visualizar usuarios" });
@@ -402,7 +399,7 @@ const passchange = async (req, res) => {
     if (!passRigth) {
       return res
         .status(404)
-        .json({ msg: "Su contraseña axtual no coincide, verifiquela" });
+        .json({ msg: "Su contraseña actual no coincide, verifiquela" });
     }
     usuarioactual.password = newpassword;
     usuarioactual.save();
@@ -419,9 +416,7 @@ const ponerToken = async (req, res) => {
     const existe = await Usuario.findOne({ tipo_usuario: "Admin_Gnl" });
 
     existe.accessToken = token;
-    console.log("Token actualizado:");
     await existe.save();
-    console.log(existe);
     return res
       .status(200)
       .json({ msg: "Token de archivos agregado o actualizado" });
@@ -432,6 +427,7 @@ const ponerToken = async (req, res) => {
       .json({ msg: "Error al establecer o actualizar el token" });
   }
 };
+
 
 export {
   registrar,
@@ -446,5 +442,5 @@ export {
   asignarRoles,
   actualizarPerfil,
   passchange,
-  ponerToken,
+  ponerToken
 };

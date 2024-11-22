@@ -12,6 +12,7 @@ import bodyParser from "body-parser";
 import helmet from "helmet";
 import cron from 'node-cron';
 import dailyTask from "./config/config-con.js";
+import backupRoutes from './routes/backupRoutes.js'
 
 //Creando instancia de express
 const app = express();
@@ -26,9 +27,7 @@ dotenv.config();
 // Middleware para parsear form-data
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-//Configurar la ruta base para servir archivos estáticos
-const __filename = import.meta.url;
-const __dirname = path.dirname(__filename);
+
 const publicDir = path.join(__dirname, "public");
 app.use(express.static(publicDir));
 // Configura el cliente de Dropbox
@@ -61,6 +60,7 @@ app.use("/api/contratos", registrosContratosRoutes);
 app.use("/api/facturas", facturasRoutes);
 app.use("/api/entidad", entidadRoutes);
 app.use("/api/direccion", direccionRoutes);
+app.use("/api/backup", backupRoutes);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {

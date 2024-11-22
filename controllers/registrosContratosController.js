@@ -5,14 +5,11 @@ import Factura from "../models/Factura.js";
 import getDirectLink from "../helpers/generarLink.js";
 import Notification from "../models/Notification.js";
 import Direccion from "../models/Direccion.js";
-import { fileURLToPath } from "url";
 import { Dropbox } from "dropbox";
 import Usuario from "../models/Usuario.js";
 import moment from "moment";
 import parcearDate, { parcearDate3 } from "../helpers/parcearFecha.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const registrarContrato = async (req, res) => {
   const { usuario } = req;
   const currentDate = moment().format("YYYYMMDD");
