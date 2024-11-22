@@ -56,13 +56,21 @@ const perfil = (req, res) => {
 
 const actualizarPerfil = async (req, res) => {
   const { usuario } = req;
+  const token = await Usuario.findOne({ tipo_usuario: "Admin_Gnl" });
+
+  const dbx = await new Dropbox({
+    accessToken: token.accessToken,
+  });
 
   try {
-    const token = await Usuario.findOne({ tipo_usuario: "Admin_Gnl" });
-
-    const dbx = await new Dropbox({
-      accessToken: token.accessToken,
+    const archivos = await dbx.filesListFolder({ path: "/Backups" });
+  } catch (error) {
+    return res.status(403).json({
+      msg: "El token del gestor de archivos ha vencido, actualicelo si quiere proceder con la acción",
     });
+  }
+
+  try {
     let perfil = await PerfilUsuario.findById(usuario._id);
     let usuarioactual = await Usuario.findById(usuario._id);
     if (!perfil && !usuarioactual) {
@@ -306,10 +314,13 @@ const visualizarusuarios = async (req, res) => {
 
   try {
     const usuarios = await PerfilUsuario.find();
-      // Filtrar los usuarios excluyendo los emails específicos
-const filteredUsers = usuarios.filter(user => {
-  return user.email !== "gsanchez@uci.cu" && user.email !== "victorhernandezsalcedo4@gmail.com";
-});
+    // Filtrar los usuarios excluyendo los emails específicos
+    const filteredUsers = usuarios.filter((user) => {
+      return (
+        user.email !== "gsanchez@uci.cu" &&
+        user.email !== "victorhernandezsalcedo4@gmail.com"
+      );
+    });
     res.status(200).json(filteredUsers);
   } catch (error) {
     console.error(error);
@@ -428,7 +439,6 @@ const ponerToken = async (req, res) => {
   }
 };
 
-
 export {
   registrar,
   autenticar,
@@ -442,5 +452,5 @@ export {
   asignarRoles,
   actualizarPerfil,
   passchange,
-  ponerToken
+  ponerToken,
 };

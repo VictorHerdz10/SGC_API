@@ -13,12 +13,13 @@ import parcearDate, { parcearDate3 } from "../helpers/parcearFecha.js";
 const registrarContrato = async (req, res) => {
   const { usuario } = req;
   const currentDate = moment().format("YYYYMMDD");
- 
+
   const token = await Usuario.findOne({ tipo_usuario: "Admin_Gnl" });
 
   const dbx = await new Dropbox({
     accessToken: token.accessToken,
   });
+
   // Extraer datos del cuerpo de la solicitud
   const {
     numeroDictamen,
@@ -86,7 +87,16 @@ const registrarContrato = async (req, res) => {
     }
     let newContrato;
     if (req.file) {
-      const originalnameWithoutExtension = path.parse(req.file.originalname).name;
+      try {
+        const archivos = await dbx.filesListFolder({ path: "/Backups" });
+      } catch (error) {
+        return res.status(403).json({
+          msg: "El token del gestor de archivos ha vencido, actualicelo si quiere proceder con la acción",
+        });
+      }
+      const originalnameWithoutExtension = path.parse(
+        req.file.originalname
+      ).name;
       const customFilename = `${originalnameWithoutExtension}-${currentDate}${path.extname(
         req.file.originalname
       )}`;
@@ -287,6 +297,13 @@ const actualizarRegistroContrato = async (req, res) => {
         .status(200)
         .json({ msg: "Contrato actualizado exitosamente", contrato });
     }
+    try {
+      const archivos = await dbx.filesListFolder({ path: "/Backups" });
+    } catch (error) {
+      return res.status(403).json({
+        msg: "El token del gestor de archivos ha vencido, actualicelo si quiere proceder con la acción",
+      });
+    }
     const originalnameWithoutExtension = path.parse(req.file.originalname).name;
     const customFilename = `${originalnameWithoutExtension}-${currentDate}${path.extname(
       req.file.originalname
@@ -379,6 +396,13 @@ const eliminarRegistroContrato = async (req, res) => {
     accessToken: token.accessToken,
   });
   try {
+    const archivos = await dbx.filesListFolder({ path: "/Backups" });
+  } catch (error) {
+    return res.status(403).json({
+      msg: "El token del gestor de archivos ha vencido, actualicelo si quiere proceder con la acción",
+    });
+  }
+  try {
     const contrato = await Contrato.findById(id);
     if (!contrato) {
       return res.status(404).json({ msg: "Contrato no encontrado" });
@@ -387,9 +411,9 @@ const eliminarRegistroContrato = async (req, res) => {
     if (facturas.length > 0) {
       await Factura.deleteMany({ contratoId: id });
     }
-    const notificaciones = await Notification.findOne({contratoId:id});
+    const notificaciones = await Notification.findOne({ contratoId: id });
     if (notificaciones) {
-      await Notification.deleteOne({ contratoId:id });
+      await Notification.deleteOne({ contratoId: id });
     }
     if (contrato.dropboxPath) {
       await dbx.filesDeleteV2({
@@ -497,7 +521,7 @@ const notificarcontratos = async (req, res) => {
           contratoId: contrato._id,
           fechaVencimiento: contrato.fechaVencimiento,
           entidad: contrato.entidad,
-          valorDisponible:contrato.valorDisponible
+          valorDisponible: contrato.valorDisponible,
         });
         await notification.save();
         console.log(
