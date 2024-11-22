@@ -27,11 +27,6 @@ dotenv.config();
 // Middleware para parsear form-data
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-
-const publicDir = path.join(__dirname, "public");
-app.use(express.static(publicDir));
-// Configura el cliente de Dropbox
-
   // Arrancar la tarea cron al iniciar la aplicación
 cron.schedule(dailyTask.schedule, dailyTask.task);
 
