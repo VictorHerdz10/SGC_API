@@ -33,12 +33,6 @@ const respaldarDatos = async (req, res) => {
 };
 
 const obtenerDatos = async (req, res) => {
-  const { usuario } = req;
-  if (usuario.tipo_usuario !== "Admin_Gnl") {
-    return res
-      .status(403)
-      .json({ msg: "No tienes permisos para realizar esta acción" });
-  }
   try {
     const datos = await Backup.find();
     return res.status(200).json(datos);
