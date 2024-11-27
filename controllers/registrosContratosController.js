@@ -396,7 +396,10 @@ const eliminarRegistroContrato = async (req, res) => {
     accessToken: token.accessToken,
   });
   try {
+    const contrato = await Contrato.findById(id);
+    if(contrato.subirPDF){
     const archivos = await dbx.filesListFolder({ path: "/Backups" });
+  }
   } catch (error) {
     return res.status(403).json({
       msg: "El token del gestor de archivos ha vencido, actualicelo si quiere proceder con la acción",

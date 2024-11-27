@@ -1,5 +1,6 @@
 import Contrato from "../models/Contratos.js";
 import Factura from "../models/Factura.js";
+import Notification from "../models/Notification.js";
 
 const crearFactura = async (req, res) => {
   const { _id, numeroDictamen, monto } = req.body;
@@ -33,9 +34,11 @@ const crearFactura = async (req, res) => {
       },
       { new: true } // Opcional: devuelve el documento actualizado
     );
-  
+   const notificaciones = await Notification.findOne({contratoId:_id});
+   notificaciones.valorDisponible=contrato.valorDisponible - montoNumber;
     contrato.valorGastado = contrato.valorGastado + montoNumber;
     contrato.valorDisponible = contrato.valorDisponible - montoNumber;
+    await notificaciones.save();
     await contrato.save();
     return res.status(200).json({ msg: "Se ah agregado una nueva factura" });
   } catch (error) {
@@ -112,7 +115,7 @@ const modificarFactura = async (req, res) => {
         .json({ msg: "No se encontró la factura solicitada" });
     }
     const contrato = await Contrato.findOne({ _id: factura.contratoId });
-
+    const notificaciones = await Notification.findOne({contratoId:contrato._id});
     if (newNumeroDictamen && newNumeroDictamen!==numeroDictamen) {
       const exitenew = await Factura.findOne({
         numeroDictamen: newNumeroDictamen,
@@ -124,15 +127,18 @@ const modificarFactura = async (req, res) => {
         });
       }
     }
+    
     if (monto && newNumeroDictamen) {
     
       if (factura.monto > monto) {
         const diferencia = factura.monto - monto;
+        notificaciones.valorDisponible=contrato.valorDisponible + diferencia;
         contrato.valorDisponible += diferencia;
         contrato.valorGastado -= diferencia;
         
       } else {
         const diferencia = monto - factura.monto;
+        notificaciones.valorDisponible=contrato.valorDisponible - diferencia;
         contrato.valorDisponible -= diferencia;
         contrato.valorGastado += diferencia;
       }
@@ -143,6 +149,7 @@ const modificarFactura = async (req, res) => {
       facturaEncontrada.monto = monto;
       factura.numeroDictamen = newNumeroDictamen;
       factura.monto = monto;
+      await notificaciones.save();
       await contrato.save();
       await factura.save();
       return res.status(200).json({ msg: "Factura modificada con éxito" });
@@ -193,7 +200,7 @@ const eliminarFactura = async (req, res) => {
 
     // Buscamos el contrato asociado
     const contrato = await Contrato.findOne({ _id: factura.contratoId });
-
+    const notificaciones = await Notification.findOne({contratoId:contrato._id});
     if (!contrato) {
       return res
         .status(404)
@@ -201,10 +208,11 @@ const eliminarFactura = async (req, res) => {
     }
 
     // Actualizamos los valores del contrato
+    notificaciones.valorDisponible=contrato.valorDisponible + factura.monto;
     contrato.valorDisponible += factura.monto;
     contrato.valorGastado -= factura.monto;
     contrato.factura.pull({ numeroDictamen });
-
+    await notificaciones.save();
     await contrato.save();
 
     res.status(200).json({ msg: "Factura eliminada con éxito" });
