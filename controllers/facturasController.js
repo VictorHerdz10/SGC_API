@@ -35,10 +35,12 @@ const crearFactura = async (req, res) => {
       { new: true } // Opcional: devuelve el documento actualizado
     );
    const notificaciones = await Notification.findOne({contratoId:_id});
-   notificaciones.valorDisponible=contrato.valorDisponible - montoNumber;
+   if(notificaciones){
+    notificaciones.valorDisponible=contrato.valorDisponible - montoNumber;
+    await notificaciones.save();
+   }
     contrato.valorGastado = contrato.valorGastado + montoNumber;
     contrato.valorDisponible = contrato.valorDisponible - montoNumber;
-    await notificaciones.save();
     await contrato.save();
     return res.status(200).json({ msg: "Se ah agregado una nueva factura" });
   } catch (error) {
@@ -132,13 +134,20 @@ const modificarFactura = async (req, res) => {
     
       if (factura.monto > monto) {
         const diferencia = factura.monto - monto;
-        notificaciones.valorDisponible=contrato.valorDisponible + diferencia;
+        if(notificaciones){
+         notificaciones.valorDisponible=contrato.valorDisponible + diferencia; 
+        notificaciones.save();
+        }
+        
         contrato.valorDisponible += diferencia;
         contrato.valorGastado -= diferencia;
         
       } else {
         const diferencia = monto - factura.monto;
-        notificaciones.valorDisponible=contrato.valorDisponible - diferencia;
+        if(notificaciones){
+          notificaciones.valorDisponible=contrato.valorDisponible - diferencia;
+        await notificaciones.save();
+        }
         contrato.valorDisponible -= diferencia;
         contrato.valorGastado += diferencia;
       }
@@ -149,7 +158,6 @@ const modificarFactura = async (req, res) => {
       facturaEncontrada.monto = monto;
       factura.numeroDictamen = newNumeroDictamen;
       factura.monto = monto;
-      await notificaciones.save();
       await contrato.save();
       await factura.save();
       return res.status(200).json({ msg: "Factura modificada con éxito" });
@@ -208,11 +216,14 @@ const eliminarFactura = async (req, res) => {
     }
 
     // Actualizamos los valores del contrato
-    notificaciones.valorDisponible=contrato.valorDisponible + factura.monto;
+    if(notificaciones){
+     notificaciones.valorDisponible=contrato.valorDisponible + factura.monto;
+     await notificaciones.save();
+    }
+    
     contrato.valorDisponible += factura.monto;
     contrato.valorGastado -= factura.monto;
     contrato.factura.pull({ numeroDictamen });
-    await notificaciones.save();
     await contrato.save();
 
     res.status(200).json({ msg: "Factura eliminada con éxito" });
