@@ -540,7 +540,6 @@ const notificarcontratos = async (req, res) => {
     });
 
     if (!contratos || contratos.length === 0) {
-      console.log("No hay contratos por vencer");
     } else {
       // Crear notificaciones para cada contrato si no existe una
       await Promise.all(
@@ -699,38 +698,23 @@ const marcarleidasAll = async (req, res) => {
 
 const eliminarNotificacionesArchivadas = async () => {
   try {
-    console.log(
-      "Iniciando proceso de eliminación de notificaciones archivadas"
-    );
 
     const notificacionesleidas = await Notification.find({
       readByAdmin: true,
       readBySer: true,
       readByMant: true,
     });
-    console.log(
-      "Número de notificaciones encontradas:",
-      notificacionesleidas.length
-    );
-
     if (!notificacionesleidas || notificacionesleidas.length === 0) {
       console.log("No hay notificaciones que eliminar");
       return;
     }
-
-    console.log("Notificaciones a eliminar:", notificacionesleidas);
 
     const resultadoEliminacion = await Notification.deleteMany({
       readByAdmin: true,
       readBySer: true,
       readByMant: true,
     });
-    console.log("Resultado de la eliminación:", resultadoEliminacion);
-
-    console.log("Notificaciones eliminadas");
-    console.log(
-      `Número de notificaciones eliminadas: ${resultadoEliminacion.deletedCount}`
-    );
+   
   } catch (error) {
     console.error(
       "Ha ocurrido un error al eliminar las notificaciones leidas:",
@@ -743,45 +727,58 @@ const cambiarEstado = async () => {
   try {
     // Obtener la fecha actual
     const currentDate = new Date();
-    console.log("Fecha actual:", currentDate);
 
     // Buscar todos los contratos activos que vencieron
     const contratosVencidos = await Contrato.find({
       estado: "Ejecución",
       fechaVencimiento: { $lte: currentDate },
     });
-    console.log("Contratos vencidos encontrados:", contratosVencidos.length);
-
     if (!contratosVencidos || contratosVencidos.length === 0) {
       console.log("No hay contratos vencidos");
       return;
     }
-
-    console.log("Contratos vencidos:", contratosVencidos);
 
     // Actualizar el estado de los contratos vencidos
     const result = await Contrato.updateMany(
       { estado: "Ejecución", fechaVencimiento: { $lte: currentDate } },
       { $set: { estado: "Finalizado" } }
     );
-    console.log("Resultado de la actualización:", result);
-
-    // Respuesta exitosa
-    console.log(
-      `Estados de contratos actualizados. Contratos modificados: ${result.modifiedCount}`
-    );
-
+   
     // Verificar el resultado después de la actualización
     const contratosActualizados = await Contrato.find({
       estado: "Finalizado",
       fechaVencimiento: { $lte: currentDate },
     });
-    console.log("Contratos actualizados:", contratosActualizados.length);
-    console.log("Primer contrato actualizado:", contratosActualizados[0]);
+    // Actualizar las notificaciones para los contratos vencidos o próximos a vencer
+    const notificacionesParaActualizar = await Notification.find({
+      contratoId: { $in: contratosVencidos.map(c => c._id) },
+      fechaVencimiento: { $lte: currentDate }
+    });
+
+    for (const notificacion of notificacionesParaActualizar) {
+      // Obtener el número de dictamen del contrato asociado
+      const contrato = await Contrato.findById(notificacion.contratoId);
+      const numeroDictamen = contrato.numeroDictamen;
+
+      // Construir la nueva descripción con el número de dictamen
+      const nuevaDescripcion = `El contrato ${numeroDictamen} ha finalizado su timpo de contratación`;
+
+      // Actualizar la descripción de la notificación
+      notificacion.description = nuevaDescripcion;
+      
+      // Guardar los cambios en la base de datos
+      await notificacion.save();
+    }
+
+    // Verificar las notificaciones actualizadas
+    const notificacionesActualizadas = await Notification.find({
+      contratoId: { $in: contratosVencidos.map(c => c._id) }
+    });
   } catch (error) {
-    console.error("Error al actualizar estados de contratos:", error);
+
+    console.error("Error al actualizar estados de contratos y notificaciones", error);
   }
-};
+}
 export {
   registrarContrato,
   obtenerRegistroContratos,
