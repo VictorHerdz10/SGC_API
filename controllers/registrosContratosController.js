@@ -600,6 +600,8 @@ const marcarComoLeidas = async (req, res) => {
         notificacion.readByEspecialista = true;
       }
       notificacion.readByAdmin = true;
+      notificacion.readByEspecialista = true;
+      notificacion.readByDirector = true;
       // Actualizar la notificación en la base de datos
       const updatedNotification = await notificacion.save();
       return res.status(200).json({
@@ -701,8 +703,8 @@ const eliminarNotificacionesArchivadas = async () => {
 
     const notificacionesleidas = await Notification.find({
       readByAdmin: true,
-      readBySer: true,
-      readByMant: true,
+      readByDirector: true,
+      readByEspecialista: true,
     });
     if (!notificacionesleidas || notificacionesleidas.length === 0) {
       console.log("No hay notificaciones que eliminar");
@@ -711,10 +713,10 @@ const eliminarNotificacionesArchivadas = async () => {
 
     const resultadoEliminacion = await Notification.deleteMany({
       readByAdmin: true,
-      readBySer: true,
-      readByMant: true,
+      readByDirector: true,
+      readByEspecialista: true,
     });
-   
+   console.log(`Se han eliminado ${resultadoEliminacion.deletedCount}`)
   } catch (error) {
     console.error(
       "Ha ocurrido un error al eliminar las notificaciones leidas:",
