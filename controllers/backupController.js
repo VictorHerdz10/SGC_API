@@ -3,6 +3,7 @@ import Usuario from "../models/Usuario.js";
 import { Dropbox } from "dropbox";
 import backupDatabase from "../helpers/backupData.js";
 import restoreDatabaseFromBackup from "../helpers/restoreData.js";
+import mongoose from "mongoose";
 
 const respaldarDatos = async (req, res) => {
   const { usuario } = req;
@@ -105,4 +106,63 @@ const eliminarBackup = async (req, res) => {
     return res.status(500).json({ msg: "Error al eliminar el copia de seguridad" });
   }
 };
-export { respaldarDatos, obtenerDatos, restablecerDataBase, eliminarBackup };
+const crearBackupLocal = async (req, res) => {
+  const { usuario } = req;
+  if (usuario.tipo_usuario !== "Admin_Gnl") {
+    return res
+      .status(403)
+      .json({ msg: "No tienes permisos para realizar esta acción" });
+  }
+  
+  try {
+    const collections = await mongoose.connection.db.listCollections().toArray();
+    const backupData = {};
+
+    for (const collection of collections) {
+      const data = await mongoose.connection.db.collection(collection.name).find({}).toArray();
+      backupData[collection.name] = data;
+    }
+
+    return res.status(200).json(backupData);
+  } catch (error) {
+    console.error("Error al crear backup local:", error);
+    return res.status(500).json({ msg: "Error al crear backup local" });
+  }
+};
+const restaurarBackupLocal = async (req, res) => {
+  console.log("Restaurando base de datos local...");
+  const { usuario } = req;
+if (usuario.tipo_usuario !== "Admin_Gnl") {
+    return res
+      .status(403)
+      .json({ msg: "No tienes permisos para realizar esta acción" });
+  }
+
+  const backupData  = req.body;
+  if (!backupData) {
+    return res.status(400).json({ msg: "No se proporcionaron datos de respaldo" });
+  }
+
+  try {
+    for (const collectionName in backupData) {
+      const collection = mongoose.connection.db.collection(collectionName);
+      await collection.deleteMany({}); // Clear existing data
+
+      const documents = backupData[collectionName].map(doc => {
+        if (doc._id) {
+          doc._id = new mongoose.Types.ObjectId(doc._id);
+        }
+        return doc;
+      });
+
+      await collection.insertMany(documents); // Insert backup data
+    }
+
+    return res.status(200).json({ msg: "Base de datos restaurada exitosamente" });
+  } catch (error) {
+    console.error("Error al restaurar la base de datos:", error);
+    return res.status(500).json({ msg: "Error al restaurar la base de datos" });
+  }
+};
+
+export { respaldarDatos, obtenerDatos, restablecerDataBase, eliminarBackup, crearBackupLocal, restaurarBackupLocal };
