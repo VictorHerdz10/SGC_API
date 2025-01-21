@@ -38,7 +38,7 @@ const contratoSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
-    valor: {
+    valorPrincipal: {
       type: Number,
       required: true,
     },
