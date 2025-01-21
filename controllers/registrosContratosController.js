@@ -28,7 +28,7 @@ const registrarContrato = async (req, res) => {
     entidad,
     direccionEjecuta,
     fechaRecibido,
-    valor,
+    valorPrincipal,
     vigencia,
     estado,
     aprobadoPorCC,
@@ -135,8 +135,8 @@ const registrarContrato = async (req, res) => {
         entidad,
         direccionEjecuta,
         fechaRecibido,
-        valor,
-        valorDisponible: valor,
+        valorPrincipal,
+        valorDisponible: valorPrincipal,
         vigencia,
         fechaVencimiento: calcularFechaFin(fechaRecibido, vigencia),
         estado,
@@ -161,8 +161,8 @@ const registrarContrato = async (req, res) => {
         entidad,
         direccionEjecuta,
         fechaRecibido,
-        valor,
-        valorDisponible: valor,
+        valorPrincipal,
+        valorDisponible: valorPrincipal,
         vigencia,
         fechaVencimiento: calcularFechaFin(fechaRecibido, vigencia),
         estado,
@@ -239,8 +239,8 @@ const actualizarRegistroContrato = async (req, res) => {
     if (!contrato) {
       return res.status(404).json({ msg: "Contrato no encontrado" });
     }
-    if (req.body.valor) {
-      if (req.body.valor < contrato.valorGastado) {
+    if (req.body.valorPrincipal) {
+      if (req.body.valorPrincipal < contrato.valorGastado) {
         return res.status(400).json({
           msg: "El valor del contrato no puede ser menor que el valor  gastado",
         });
@@ -260,8 +260,8 @@ const actualizarRegistroContrato = async (req, res) => {
       contrato.info.modificadoPor = usuario.nombre;
       contrato.info.fechaDeModificacion = new Date().toISOString();
 
-      if (req.body.valor) {
-        contrato.valorDisponible = req.body.valor - contrato.valorGastado;
+      if (req.body.valorPrincipal) {
+        contrato.valorDisponible = req.body.valorPrincipal - contrato.valorGastado;
       }
       if (req.body.fechaRecibido) {
         contrato.fechaVencimiento = calcularFechaFin(
@@ -282,7 +282,7 @@ const actualizarRegistroContrato = async (req, res) => {
       contrato.entregadoJuridica =
         req.body.entregadoJuridica || contrato.entregadoJuridica;
       contrato.fechaRecibido = req.body.fechaRecibido || contrato.fechaRecibido;
-      contrato.valor = parseInt(req.body.valor) || contrato.valor;
+      contrato.valorPrincipal = parseInt(req.body.valorPrincipal) || contrato.valorPrincipal;
       contrato.valorDisponible =
         parseInt(req.body.valorDisponible) || contrato.valorDisponible;
       contrato.valorGastado =
@@ -356,7 +356,7 @@ const actualizarRegistroContrato = async (req, res) => {
     contrato.entregadoJuridica =
       req.body.entregadoJuridica || contrato.entregadoJuridica;
     contrato.fechaRecibido = req.body.fechaRecibido || contrato.fechaRecibido;
-    contrato.valor = parseInt(req.body.valor) || contrato.valor;
+    contrato.valorPrincipal = parseInt(req.body.valorPrincipal) || contrato.valorPrincipal;
     contrato.valorDisponible =
       parseInt(req.body.valorDisponible) || contrato.valorDisponible;
     contrato.valorGastado =
@@ -367,8 +367,8 @@ const actualizarRegistroContrato = async (req, res) => {
       req.body.numeroDictamen || contrato.numeroDictamen;
     await contrato.save();
 
-    if (req.body.valor) {
-      contrato.valorDisponible = req.body.valor - contrato.valorGastado;
+    if (req.body.valorPrincipal) {
+      contrato.valorDisponible = req.body.valorPrincipal - contrato.valorGastado;
     }
     if (req.body.fechaRecibido) {
       contrato.fechaVencimiento = calcularFechaFin(

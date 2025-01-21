@@ -200,6 +200,7 @@ const autenticar = async (req, res) => {
 
   // Verificar si el usuario existe
   const usuario = await Usuario.findOne({ email });
+  console.log(usuario);
 
   if (!usuario) {
     const error = new Error("El usuario no existe");
