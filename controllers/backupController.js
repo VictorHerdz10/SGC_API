@@ -150,8 +150,6 @@ const restaurarBackupLocal = async (req, res) => {
   }
 
   const backupData = req.body;
-  console.log(backupData);
-
   if (!backupData) {
     return res
       .status(400)
