@@ -25,7 +25,9 @@ const respaldarDatos = async (req, res) => {
   }
   try {
     const backupPath = await backupDatabase(dbx);
-    return res.json({ msg: "Copia de seguridad completada satifactoriamente! Archivos encriptados y seguros." });
+    return res.json({
+      msg: "Copia de seguridad completada satifactoriamente! Archivos encriptados y seguros.",
+    });
   } catch (error) {
     console.error("Error al crear respaldo:", error);
     res.status(500).json({ error: "Error al crear copia de seguridad" });
@@ -42,15 +44,15 @@ const obtenerDatos = async (req, res) => {
 };
 
 const restablecerDataBase = async (req, res) => {
- const { usuario } = req;
+  const { usuario } = req;
   if (usuario.tipo_usuario !== "Admin_Gnl") {
     return res
       .status(403)
       .json({ msg: "No tienes permisos para realizar esta acción" });
   }
- const token = await Usuario.findOne({ tipo_usuario: "Admin_Gnl" });
+  const token = await Usuario.findOne({ tipo_usuario: "Admin_Gnl" });
   const dbx = await new Dropbox({
-    accessToken: token.accessToken ,
+    accessToken: token.accessToken,
   });
   try {
     const archivos = await dbx.filesListFolder({ path: "/Backups" });
@@ -97,13 +99,17 @@ const eliminarBackup = async (req, res) => {
       for (let entry of entries.result.entries) {
         const fullPath = entry.path_display;
         await dbx.filesDeleteV2({ path: fullPath });
-      } 
+      }
     }
     await backup.deleteOne();
-    return res.status(200).json({ msg: "Copia de seguridad eliminada satifactoriamente!" });
+    return res
+      .status(200)
+      .json({ msg: "Copia de seguridad eliminada satifactoriamente!" });
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ msg: "Error al eliminar el copia de seguridad" });
+    return res
+      .status(500)
+      .json({ msg: "Error al eliminar el copia de seguridad" });
   }
 };
 const crearBackupLocal = async (req, res) => {
@@ -113,13 +119,18 @@ const crearBackupLocal = async (req, res) => {
       .status(403)
       .json({ msg: "No tienes permisos para realizar esta acción" });
   }
-  
+
   try {
-    const collections = await mongoose.connection.db.listCollections().toArray();
+    const collections = await mongoose.connection.db
+      .listCollections()
+      .toArray();
     const backupData = {};
 
     for (const collection of collections) {
-      const data = await mongoose.connection.db.collection(collection.name).find({}).toArray();
+      const data = await mongoose.connection.db
+        .collection(collection.name)
+        .find({})
+        .toArray();
       backupData[collection.name] = data;
     }
 
@@ -132,15 +143,19 @@ const crearBackupLocal = async (req, res) => {
 const restaurarBackupLocal = async (req, res) => {
   console.log("Restaurando base de datos local...");
   const { usuario } = req;
-if (usuario.tipo_usuario !== "Admin_Gnl") {
+  if (usuario.tipo_usuario !== "Admin_Gnl") {
     return res
       .status(403)
       .json({ msg: "No tienes permisos para realizar esta acción" });
   }
 
-  const backupData  = req.body;
+  const backupData = req.body;
+  console.log(backupData);
+
   if (!backupData) {
-    return res.status(400).json({ msg: "No se proporcionaron datos de respaldo" });
+    return res
+      .status(400)
+      .json({ msg: "No se proporcionaron datos de respaldo" });
   }
 
   try {
@@ -148,21 +163,31 @@ if (usuario.tipo_usuario !== "Admin_Gnl") {
       const collection = mongoose.connection.db.collection(collectionName);
       await collection.deleteMany({}); // Clear existing data
 
-      const documents = backupData[collectionName].map(doc => {
+      const documents = backupData[collectionName].map((doc) => {
         if (doc._id) {
           doc._id = new mongoose.Types.ObjectId(doc._id);
         }
         return doc;
       });
-
-      await collection.insertMany(documents); // Insert backup data
+      if (documents.length > 0) {
+        await collection.insertMany(documents); // Insert backup data
+      }
     }
 
-    return res.status(200).json({ msg: "Base de datos restaurada exitosamente" });
+    return res
+      .status(200)
+      .json({ msg: "Base de datos restaurada exitosamente" });
   } catch (error) {
     console.error("Error al restaurar la base de datos:", error);
     return res.status(500).json({ msg: "Error al restaurar la base de datos" });
   }
 };
 
-export { respaldarDatos, obtenerDatos, restablecerDataBase, eliminarBackup, crearBackupLocal, restaurarBackupLocal };
+export {
+  respaldarDatos,
+  obtenerDatos,
+  restablecerDataBase,
+  eliminarBackup,
+  crearBackupLocal,
+  restaurarBackupLocal,
+};
