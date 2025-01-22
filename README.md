@@ -26,8 +26,8 @@ Este proyecto es una API para gestionar el registro de contratos. Permite realiz
 
 1. Clona el repositorio:
     ```bash
-    git clone https://github.com/tu-usuario/registro-contratos.git
-    cd registro-contratos/backend
+    git clone https://github.com/VictorHerdz10/SGC_API.git
+    cd SGC_API/backend
     ```
 
 2. Instala las dependencias:
