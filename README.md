@@ -121,13 +121,18 @@ EMAIL_HOST=smtp.tu_proveedor_de_email.com
 EMAIL_PORT=587
 FRONTEND_URL=http://localhost:3000
 PORT=4000
-Contribuyendo
+```
+
+## Contribuyendo
+
 ¡Gracias por tu interés en contribuir! Por favor, sigue estos pasos para contribuir al proyecto:
 
-Haz un fork del repositorio.
-Crea una nueva rama (git checkout -b feature/nueva-funcionalidad).
-Realiza tus cambios y haz commit (git commit -m 'Agregar nueva funcionalidad').
-Sube tus cambios (git push origin feature/nueva-funcionalidad).
-Abre un Pull Request.
-Licencia
+1. Haz un fork del repositorio.
+2. Crea una nueva rama (git checkout -b feature/nueva-funcionalidad).
+3. Realiza tus cambios y haz commit (git commit -m 'Agregar nueva funcionalidad').
+4. Sube tus cambios (git push origin feature/nueva-funcionalidad).
+5. Abre un Pull Request.
+
+## Licencia
+
 Este proyecto está licenciado bajo la Licencia ISC.
