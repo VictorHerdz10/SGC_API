@@ -11,6 +11,8 @@ import { Dropbox } from "dropbox";
 import moment from "moment";
 import Direccion from "../models/Direccion.js";
 import Entidad from "../models/Entidad.js";
+import platform from "platform";
+import guardarTraza from "../helpers/saveTraza.js";
 
 const registrar = async (req, res) => {
   const { email } = req.body;
@@ -197,6 +199,16 @@ const perfilInfo = async (req, res) => {
 
 const autenticar = async (req, res) => {
   const { email, password } = req.body;
+  // Obtener la dirección IP del usuario
+  console.log(req.ip)
+const ipAddress =  req.ip || req.headers["x-forwarded-for"] || req.connection.remoteAddress;
+  // Obtener metadatos (navegador y sistema operativo)
+  const userAgent = platform.parse(req.headers["user-agent"]);
+  const metadata = {
+    navegador: userAgent.name,
+    version: userAgent.version,
+    sistema_operativo: userAgent.os,
+  };
 
   // Verificar si el usuario existe
   const usuario = await Usuario.findOne({ email });
@@ -228,6 +240,14 @@ const autenticar = async (req, res) => {
       foto_perfil: perfil.foto_perfil,
       telefono: perfil.telefono,
       cargo: perfil.cargo,
+    });
+    await guardarTraza({
+      entity_name: "usuarios",
+      action_type: "INICIO_SESION",
+      changed_by: usuario.nombre,
+      ip_address: ipAddress,
+      session_id: req.sessionID,
+      metadata: metadata,
     });
   } else {
     const error = new Error("La contraseña es incorrecta");

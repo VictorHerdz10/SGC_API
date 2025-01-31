@@ -13,15 +13,27 @@ import helmet from "helmet";
 import cron from 'node-cron';
 import dailyTask from "./config/config-con.js";
 import backupRoutes from './routes/backupRoutes.js'
+import session from "express-session";
+import cookieParser from "cookie-parser";
+import trazaRoutes from './routes/trazasRoutes.js'
 
 //Creando instancia de express
 const app = express();
 app.use(express.json());
+app.use(cookieParser())
 app.use(helmet({
   frameguard: {
     action: 'sameorigin'
   }
 }));
+app.use(
+  session({
+    secret: "tu_secreto",
+    resave: false,
+    saveUninitialized: true,
+    cookie: { secure: false }, // Cambia a true si usas HTTPS
+  })
+);
 
 dotenv.config();
 // Middleware para parsear form-data
@@ -56,6 +68,7 @@ app.use("/api/facturas", facturasRoutes);
 app.use("/api/entidad", entidadRoutes);
 app.use("/api/direccion", direccionRoutes);
 app.use("/api/backup", backupRoutes);
+app.use("/api/trazas", trazaRoutes);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
