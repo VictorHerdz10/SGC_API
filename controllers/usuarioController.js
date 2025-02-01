@@ -116,19 +116,18 @@ const actualizarPerfil = async (req, res) => {
 
 if (req.file) {
   try {
-    // Si ya existe una imagen en Cloudinary, eliminarla
+    
     if (perfil.foto_perfil) {
-      const publicId = perfil.foto_perfil.split("/").pop().split(".")[0]; // Extraer el public_id de la URL
-      await cloudinary.uploader.destroy(publicId); // Eliminar la imagen anterior
-      console.log("Imagen anterior eliminada de Cloudinary:", publicId);
+      const publicId = perfil.foto_perfil.split("/").pop().split(".")[0]; 
+      await cloudinary.uploader.destroy(publicId);
     }
 
     // Subir la nueva imagen a Cloudinary usando el buffer
     const result = await cloudinary.uploader.upload(
       `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`,
       {
-        public_id: uuid(), // Usar un ID único para la imagen
-        folder: "perfiles", // Opcional: Guardar en una carpeta específica
+        public_id: uuid(),
+        folder: "perfiles",
       }
     );
 
