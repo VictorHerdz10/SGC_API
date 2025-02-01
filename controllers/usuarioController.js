@@ -5,14 +5,12 @@ import generarJWT from "../helpers/generarJWT.js";
 import generarId from "../helpers/generarId.js";
 import emailOlvidePassword from "../helpers/emailOlvidePassword.js";
 import PerfilUsuario from "../models/PerfiUsuario.js";
-import path from "path";
-import getDirectLink from "../helpers/generarLink.js";
-import { Dropbox } from "dropbox";
-import moment from "moment";
 import Direccion from "../models/Direccion.js";
 import Entidad from "../models/Entidad.js";
 import platform from "platform";
 import guardarTraza from "../helpers/saveTraza.js";
+import {v4 as uuid }from "uuid";
+import cloudinary from "../config/claudinary.js";
 
 const registrar = async (req, res) => {
   const { email } = req.body;
@@ -59,18 +57,6 @@ const perfil = (req, res) => {
 const actualizarPerfil = async (req, res) => {
   const { usuario } = req;
   const token = await Usuario.findOne({ tipo_usuario: "Admin_Gnl" });
-
-  const dbx = await new Dropbox({
-    accessToken: token.accessToken,
-  });
-
-  try {
-    const archivos = await dbx.filesListFolder({ path: "/Backups" });
-  } catch (error) {
-    return res.status(403).json({
-      msg: "El token del gestor de archivos ha vencido, actualicelo si quiere proceder con la acción",
-    });
-  }
 
   try {
     let perfil = await PerfilUsuario.findById(usuario._id);
@@ -128,59 +114,46 @@ const actualizarPerfil = async (req, res) => {
     perfil = Object.assign(perfil, req.body);
     usuarioactual = Object.assign(usuario, req.body);
 
-    // Si se envió una imagen, actualizar la URL de la foto de perfil
-    if (req.file) {
-      if (perfil.originalName === "perfil.png") {
-        await perfil.updateOne({}, { $unset: { foto_perfil: "" } });
-      } else if (perfil.originalName !== "perfil.png") {
-        await dbx.filesDeleteV2({
-          path: perfil.dropboxPath,
-        });
-
-        console.log(
-          "Archivo existente eliminado de la nube:",
-          perfil.originalName
-        );
-        await perfil.updateOne({}, { $unset: { foto_perfil: "" } });
-        console.log("actualizado en db");
-      }
-
-      // Subir archivo a Dropbox
-      const currentDate = moment().format("YYYYMMDD");
-      const originalnameWithoutExtension = path.parse(
-        req.file.originalname
-      ).name;
-      const customFilename = `${originalnameWithoutExtension}-${currentDate}${path.extname(
-        req.file.originalname
-      )}`;
-
-      const uploadedFile = await dbx.filesUpload({
-        path: "/uploads/" + customFilename,
-        contents: req.file.buffer,
-        mode: "add",
-        autorename: true,
-        mute: true,
-      });
-
-      // Obtener el link público del archivo
-      const publicLink = await dbx.sharingCreateSharedLinkWithSettings({
-        path: uploadedFile.result.path_display,
-        settings: {
-          requested_visibility: {
-            ".tag": "public",
-          },
-        },
-      });
-
-      const directImageLink = getDirectLink(publicLink.result.url);
-      perfil.foto_perfil = directImageLink;
-      perfil.originalName = req.file.originalname;
-      perfil.dropboxPath = uploadedFile.result.path_display;
+if (req.file) {
+  try {
+    // Si ya existe una imagen en Cloudinary, eliminarla
+    if (perfil.foto_perfil) {
+      const publicId = perfil.foto_perfil.split("/").pop().split(".")[0]; // Extraer el public_id de la URL
+      await cloudinary.uploader.destroy(publicId); // Eliminar la imagen anterior
+      console.log("Imagen anterior eliminada de Cloudinary:", publicId);
     }
-    await perfil.save();
-    await usuarioactual.save();
 
-    res.json({ msg: "Perfil actualizado exitosamente" });
+    // Subir la nueva imagen a Cloudinary usando el buffer
+    const result = await cloudinary.uploader.upload(
+      `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`,
+      {
+        public_id: uuid(), // Usar un ID único para la imagen
+        folder: "perfiles", // Opcional: Guardar en una carpeta específica
+      }
+    );
+
+    // Guardar la URL de la imagen en el perfil
+    perfil.foto_perfil = result.secure_url;
+    perfil.originalName = req.file.originalname;
+  } catch (error) {
+    console.error("Error al subir la imagen a Cloudinary:", error);
+    return res
+      .status(500)
+      .json({ error: "Hubo un error al subir la imagen a Cloudinary" });
+  }
+}
+
+// Guardar los cambios en la base de datos
+await perfil.save();
+await usuarioactual.save();
+
+res.json({ msg: "Perfil actualizado exitosamente", 
+  perfil:{
+    nombre: perfil.nombre,
+    cargo: perfil.cargo,
+    telefono: perfil.telefono,
+    foto_perfil: perfil.foto_perfil
+  } });
   } catch (error) {
     console.error(error);
     res.status(500).json({ msg: "Error al actualizar el perfil" });
