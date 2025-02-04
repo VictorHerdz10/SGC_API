@@ -1,5 +1,5 @@
 import Traza from "../models/Trazas.js";
-import { v4 as uuidv4 } from "uuid";
+import generarId from "./generarId.js";
 
 /**
  * Guarda una traza en la base de datos.
@@ -18,7 +18,7 @@ import { v4 as uuidv4 } from "uuid";
 const guardarTraza = async (params) => {
   try {
     const nuevaTraza = new Traza({
-      entity_name: params.entity_name,
+      entity_name: params.entity_name || null,
       entity_id: params.entity_id || null,
       action_type: params.action_type,
       old_value: params.old_value || null,
@@ -26,12 +26,11 @@ const guardarTraza = async (params) => {
       changed_by: params.changed_by,
       ip_address: params.ip_address,
       session_id: params.session_id,
-      transaction_id: uuidv4(), // Genera un ID único para la transacción
+      transaction_id: generarId(), // Genera un ID único para la transacción
       metadata: params.metadata || null,
     });
 
     await nuevaTraza.save();
-    console.log("Traza guardada correctamente:", nuevaTraza);
   } catch (error) {
     console.error("Error al guardar la traza:", error);
   }

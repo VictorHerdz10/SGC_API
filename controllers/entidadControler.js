@@ -1,3 +1,4 @@
+import { ipAddress, userAgent } from "../helpers/ipAndMetadata.js";
 import Contrato from "../models/Contratos.js";
 import Entidad from "../models/Entidad.js";
 
@@ -26,10 +27,20 @@ const crearEntidad = async (req, res) => {
     }
   }
   try {
-    await Entidad.create({
+    const newEntidad= await Entidad.create({
       entidad: entidad.trim(),
       ejecutivoId: usuario._id,
       nombreEjecutivo: usuario.nombre,
+    });
+    await guardarTraza({
+      entity_name: "Entidad",
+      entity_id: newEntidad._id,
+      new_value:newEntidad.entidad,
+      action_type: "INSERTAR",
+      changed_by: usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
     });
 
     return res.json({ msg: "Entidad registrada con exito" });
@@ -39,7 +50,7 @@ const crearEntidad = async (req, res) => {
 };
 
 const obtenerEntidades = async (req, res) => {
-  const { usuario } = req;
+  
   try {
     const entidades = await Entidad.find();
     return res.status(200).json(entidades);
@@ -50,6 +61,7 @@ const obtenerEntidades = async (req, res) => {
 
 const modificarEntidad = async (req, res) => {
   try {
+    const { usuario } = req;
     const { entidad } = req.body;
     const entidadactual = await Entidad.findById(req.params.id);
     const entidadExistente = await Entidad.findByIdAndUpdate(
@@ -57,7 +69,17 @@ const modificarEntidad = async (req, res) => {
       { entidad, modificado: Date.now() },
       { new: true }
     );
-
+    await guardarTraza({
+      entity_name: "Dirección",
+      entity_id: entidadExistente._id,
+      old_value:entidadactual.entidad,
+      new_value:entidad,
+      action_type: "ACTUALIZAR",
+      changed_by: usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
     const contratos = await Contrato.find({
       entidad: entidadactual.entidad,
     });
@@ -71,6 +93,17 @@ const modificarEntidad = async (req, res) => {
               { $set: { entidad } },
               { new: true }
             );
+            await guardarTraza({
+              entity_name: "Contratos",
+              entity_id: contract._id,
+              old_value:entidadactual.entidad,
+              new_value:entidad,
+              action_type: "ACTUALIZAR",
+              changed_by: usuario.nombre,
+              ip_address: ipAddress(req),
+              session_id: req.sessionID,
+              metadata: userAgent(req),
+            });
             return result;
           } catch (error) {
             console.error(
@@ -98,13 +131,23 @@ const modificarEntidad = async (req, res) => {
 
 const eliminarEntidad = async (req, res) => {
   try {
+    const{usuario}=req;
     // Primero, obtenemos la dirección a eliminar
     const entidadExistente = await Entidad.findById(req.params.id);
 
     if (!entidadExistente) {
       return res.status(404).json({ msg: "Entidad no encontrada" });
     }
-
+    await guardarTraza({
+      entity_name: "Entidad",
+      entity_id: entidadExistente._id,
+      old_value:entidadExistente.entidad,
+      action_type: "ELIMINAR",
+      changed_by: usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
     await entidadExistente.deleteOne();
     return res.status(200).json({ msg: "Entidad eliminada con éxito " });
   } catch (error) {

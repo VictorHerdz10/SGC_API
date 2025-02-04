@@ -1,3 +1,5 @@
+import { ipAddress, userAgent } from "../helpers/ipAndMetadata.js";
+import guardarTraza from "../helpers/saveTraza.js";
 import Contrato from "../models/Contratos.js";
 import Direccion from "../models/Direccion.js";
 
@@ -19,12 +21,21 @@ const crearDireccion = async (req, res) => {
   }
 
   try {
-    await Direccion.create({
+    const newDirection = await Direccion.create({
       direccionEjecutiva: direccionEjecutiva.trim(),
       ejecutivoId: usuario._id,
       nombreEjecutivo: usuario.nombre,
     });
-
+    await guardarTraza({
+      entity_name: "Dirección",
+      entity_id: newDirection._id,
+      new_value:newDirection.direccionEjecutiva,
+      action_type: "INSERTAR",
+      changed_by: usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
     return res.status(200).json({ msg: "Direccion creada con exito" });
   } catch (error) {
     return res.status(500).json({ msg: "Error al crear la direccion" });
@@ -52,7 +63,9 @@ const obtenerDirecciones = async (req, res) => {
 };
 
 const modificarDireccion = async (req, res) => {
+  const{usuario}=req;
   try {
+    
     const { direccionEjecutiva } = req.body;
     const direccionactual= await Direccion.findById(req.params.id);
     const direccion = await Direccion.findByIdAndUpdate(
@@ -60,7 +73,17 @@ const modificarDireccion = async (req, res) => {
       { direccionEjecutiva, modificado: Date.now() },
       { new: true }
     );
-
+    await guardarTraza({
+      entity_name: "Dirección",
+      entity_id: direccion._id,
+      old_value:direccionactual.direccionEjecutiva,
+      new_value:direccionEjecutiva,
+      action_type: "ACTUALIZAR",
+      changed_by: usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
     const contratos = await Contrato.find({
       direccionEjecuta: direccionactual.direccionEjecutiva,
     });
@@ -74,6 +97,17 @@ const modificarDireccion = async (req, res) => {
               { $set: { direccionEjecutiva } },
               { new: true }
             );
+            await guardarTraza({
+              entity_name: "Contratos",
+              entity_id: contract._id,
+              old_value:direccionactual.direccionEjecutiva,
+              new_value:direccionEjecutiva,
+              action_type: "ACTUALIZAR",
+              changed_by: usuario.nombre,
+              ip_address: ipAddress(req),
+              session_id: req.sessionID,
+              metadata: userAgent(req),
+            });
             return result;
           } catch (error) {
             console.error(
@@ -106,7 +140,16 @@ const eliminarDireccion = async (req, res) => {
   if (!direccion) {
     return res.status(404).json({ msg: "Dirección no encontrada" });
   }
-
+  await guardarTraza({
+    entity_name: "Dirección",
+    entity_id: direccion._id,
+    old_value:direccion.direccionEjecutiva,
+    action_type: "ELIMINAR",
+    changed_by: usuario.nombre,
+    ip_address: ipAddress(req),
+    session_id: req.sessionID,
+    metadata: userAgent(req),
+  });
   await direccion.deleteOne();
   res.json({
     msg: `Dirección eliminada con éxito`,

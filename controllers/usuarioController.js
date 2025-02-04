@@ -9,8 +9,9 @@ import Direccion from "../models/Direccion.js";
 import Entidad from "../models/Entidad.js";
 import platform from "platform";
 import guardarTraza from "../helpers/saveTraza.js";
-import {v4 as uuid }from "uuid";
+import { v4 as uuid } from "uuid";
 import cloudinary from "../config/claudinary.js";
+import { ipAddress, userAgent } from "../helpers/ipAndMetadata.js";
 
 const registrar = async (req, res) => {
   const { email } = req.body;
@@ -41,6 +42,15 @@ const registrar = async (req, res) => {
       await usuario.save();
       await perfil.save();
     }
+    await guardarTraza({
+      entity_name: "Usuarios",
+      entity_id: usuario._id,
+      action_type: "REGISTRO",
+      changed_by: usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
 
     res.json({ msg: "Usuario registrado exitosamente" });
   } catch (error) {
@@ -57,6 +67,8 @@ const perfil = (req, res) => {
 const actualizarPerfil = async (req, res) => {
   const { usuario } = req;
   const token = await Usuario.findOne({ tipo_usuario: "Admin_Gnl" });
+  let old_value;
+  let new_value;
 
   try {
     let perfil = await PerfilUsuario.findById(usuario._id);
@@ -64,21 +76,36 @@ const actualizarPerfil = async (req, res) => {
     if (!perfil && !usuarioactual) {
       return res.status(404).json({ msg: "Perfil y Usuario no encontrado" });
     }
+    
     if (req.body.nombre) {
       // Buscar todas las direcciones asociadas al ejecutivo actual
       const direcciones = await Direccion.find({ ejecutivoId: usuario._id });
       const entidades = await Entidad.find({ ejecutivoId: usuario._id });
+      old_value.nombre=perfil.nombre;
+      new_value.nombre=req.body.nombre;
 
       // Actualizar cada dirección individualmente
       if (direcciones) {
         await Promise.all(
           direcciones.map(async (direccion) => {
             try {
-              const result = await Direccion.findByIdAndUpdate(
+              const result = await Direccion.findById(direccion._id);
+              await Direccion.findByIdAndUpdate(
                 direccion._id,
                 { $set: { nombreEjecutivo: req.body.nombre } },
                 { new: true }
               );
+              await guardarTraza({
+                entity_name: "Dirección",
+                entity_id: direccion._id,
+                old_value:result.nombreEjecutivo,
+                new_value:req.body.nombre,
+                action_type: "ACTUALIZAR",
+                changed_by: usuario.nombre,
+                ip_address: ipAddress(req),
+                session_id: req.sessionID,
+                metadata: userAgent(req),
+              });
             } catch (error) {
               console.error(
                 `Error al actualizar dirección ${direccion._id}:`,
@@ -94,11 +121,23 @@ const actualizarPerfil = async (req, res) => {
         await Promise.all(
           entidades.map(async (entidad) => {
             try {
-              const result = await Entidad.findByIdAndUpdate(
+              const result = await Entidad.findById(entidad._id);
+              await Entidad.findByIdAndUpdate(
                 entidad._id,
                 { $set: { nombreEjecutivo: req.body.nombre } },
                 { new: true }
               );
+              await guardarTraza({
+                entity_name: "Entidad",
+                entity_id: entidad._id,
+                old_value:result.nombreEjecutivo,
+                new_value:req.body.nombre,
+                action_type: "ACTUALIZAR",
+                changed_by: usuario.nombre,
+                ip_address: ipAddress(req),
+                session_id: req.sessionID,
+                metadata: userAgent(req),
+              });
             } catch (error) {
               console.error(
                 `Error al actualizar dirección ${entidad._id}:`,
@@ -110,49 +149,68 @@ const actualizarPerfil = async (req, res) => {
         );
       }
     }
+    if(req.body.cargo) {old_value.cargo=perfil.cargo;new_value.cargo=req.body.cargo}
+    if(req.body.telefono) {old_value.telefono=perfil.telefono;new_value.cargo=req.body.telefono}
     // Actualizar información del perfil
     perfil = Object.assign(perfil, req.body);
     usuarioactual = Object.assign(usuario, req.body);
 
-if (req.file) {
-  try {
-    
-    if (perfil.foto_perfil) {
-      const publicId = perfil.foto_perfil.split("/").pop().split(".")[0]; 
-      await cloudinary.uploader.destroy(publicId);
+    if (req.file) {
+      old_value.fileName=perfil.originalName;
+      new_value.fileName=req.file.originalName;
+      try {
+        if (perfil.foto_perfil) {
+          const publicId = perfil.foto_perfil.split("/").pop().split(".")[0];
+          await cloudinary.uploader.destroy(publicId);
+        }
+
+        // Subir la nueva imagen a Cloudinary usando el buffer
+        const result = await cloudinary.uploader.upload(
+          `data:${req.file.mimetype};base64,${req.file.buffer.toString(
+            "base64"
+          )}`,
+          {
+            public_id: uuid(),
+            folder: "perfiles",
+          }
+        );
+
+        // Guardar la URL de la imagen en el perfil
+        perfil.foto_perfil = result.secure_url;
+        perfil.originalName = req.file.originalname;
+
+      } catch (error) {
+        console.error("Error al subir la imagen a Cloudinary:", error);
+        return res
+          .status(500)
+          .json({ error: "Hubo un error al subir la imagen a Cloudinary" });
+      }
     }
 
-    // Subir la nueva imagen a Cloudinary usando el buffer
-    const result = await cloudinary.uploader.upload(
-      `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`,
-      {
-        public_id: uuid(),
-        folder: "perfiles",
-      }
-    );
+    // Guardar los cambios en la base de datos
+    await perfil.save();
+    await usuarioactual.save();
+    await guardarTraza({
+      entity_name: "PerfilUsuario",
+      entity_id: perfil._id,
+      old_value,
+      new_value,
+      action_type: "ACTUALIZAR",
+      changed_by: usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
 
-    // Guardar la URL de la imagen en el perfil
-    perfil.foto_perfil = result.secure_url;
-    perfil.originalName = req.file.originalname;
-  } catch (error) {
-    console.error("Error al subir la imagen a Cloudinary:", error);
-    return res
-      .status(500)
-      .json({ error: "Hubo un error al subir la imagen a Cloudinary" });
-  }
-}
-
-// Guardar los cambios en la base de datos
-await perfil.save();
-await usuarioactual.save();
-
-res.json({ msg: "Perfil actualizado exitosamente", 
-  perfil:{
-    nombre: perfil.nombre,
-    cargo: perfil.cargo,
-    telefono: perfil.telefono,
-    foto_perfil: perfil.foto_perfil
-  } });
+    res.json({
+      msg: "Perfil actualizado exitosamente",
+      perfil: {
+        nombre: perfil.nombre,
+        cargo: perfil.cargo,
+        telefono: perfil.telefono,
+        foto_perfil: perfil.foto_perfil,
+      },
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ msg: "Error al actualizar el perfil" });
@@ -171,17 +229,7 @@ const perfilInfo = async (req, res) => {
 
 const autenticar = async (req, res) => {
   const { email, password } = req.body;
-  // Obtener la dirección IP del usuario
-  console.log(req.ip)
-const ipAddress =  req.ip || req.headers["x-forwarded-for"] || req.connection.remoteAddress;
-  // Obtener metadatos (navegador y sistema operativo)
-  const userAgent = platform.parse(req.headers["user-agent"]);
-  const metadata = {
-    navegador: userAgent.name,
-    version: userAgent.version,
-    sistema_operativo: userAgent.os,
-  };
-
+  
   // Verificar si el usuario existe
   const usuario = await Usuario.findOne({ email });
   if (!usuario) {
@@ -214,12 +262,12 @@ const ipAddress =  req.ip || req.headers["x-forwarded-for"] || req.connection.re
       cargo: perfil.cargo,
     });
     await guardarTraza({
-      entity_name: "usuarios",
+      entity_name: "Usuarios",
       action_type: "INICIO_SESION",
       changed_by: usuario.nombre,
-      ip_address: ipAddress,
+      ip_address: ipAddress(req),
       session_id: req.sessionID,
-      metadata: metadata,
+      metadata: userAgent(req),
     });
   } else {
     const error = new Error("La contraseña es incorrecta");
@@ -245,6 +293,13 @@ const olvidePassword = async (req, res) => {
       email,
       nombre: existeUsuario.nombre,
       token: existeUsuario.token,
+    });
+    await guardarTraza({
+      action_type: "RESTABLECER_CONTRASEÑA",
+      changed_by: existeUsuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
     });
     return res
       .status(200)
@@ -276,7 +331,6 @@ const comprobarToken = async (req, res) => {
 const nuevoPassword = async (req, res) => {
   const { token } = req.params;
   const { password } = req.body;
-
   const usuario = await Usuario.findOne({ token });
 
   if (!usuario) {
@@ -287,6 +341,17 @@ const nuevoPassword = async (req, res) => {
     usuario.token = null;
     usuario.password = password;
     await usuario.save();
+    await guardarTraza({
+      entity_name: "Usuarios",
+      entity_id: usuario._id,
+      old_value:"*******",
+      new_value:"********",
+      action_type: "ACTUALIZAR",
+      changed_by: usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
     res.json({ msg: "Contraseña actualizada correctamente" });
   } catch (error) {
     console.log(error);
@@ -335,7 +400,35 @@ const eliminarUsuario = async (req, res) => {
 
     if (!usuarioToDelete) {
       return res.status(404).json({ msg: "Usuario no encontrado" });
-    }
+    }await guardarTraza({
+      entity_name: "Usuarios",
+      entity_id: usuarioToDelete._id,
+      old_value:{nombre:usuarioToDelete.nombre,
+        email:usuarioToDelete.email,
+        tipo_usuario:usuarioToDelete.tipo_usuario,
+        telefono:usuarioToDelete.telefono,
+      },
+      action_type: "ELIMINAR",
+      changed_by: usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
+    await guardarTraza({
+      entity_name: "PerfilUsuario",
+      entity_id: perfilToDelete._id,
+      old_value:{nombre:perfilToDelete.nombre,
+        cargo:perfilToDelete.cargo,
+        email:perfilToDelete.email,
+        telefono:perfilToDelete.telefono,
+        tipo_usuario:perfilToDelete.tipo_usuario,
+      },
+      action_type: "ELIMINAR",
+      changed_by: usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
     await perfilToDelete.deleteOne();
     await usuarioToDelete.deleteOne();
     res.json({ msg: "Usuario eliminado correctamente" });
@@ -367,11 +460,23 @@ const asignarRoles = async (req, res) => {
         msg: "El usuario ya tiene asignado este rol, por favor verifique...",
       });
     }
+    await guardarTraza({
+      entity_name: "Usuarios",
+      entity_id: usuarioasignar._id,
+      old_value:usuarioasignar.tipo_usuario,
+      new_value:rol,
+      action_type: "ACTUALIZAR",
+      changed_by: usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
     // Asigna roles al usuario
     usuarioasignar.tipo_usuario = rol;
     perfilAsignar.tipo_usuario = rol;
     await perfilAsignar.save();
     await usuarioasignar.save();
+    
     if (rol === "especialista") {
       const relacionConDirector = await Usuario.findById(req.body.directorId);
 
@@ -404,7 +509,18 @@ const passchange = async (req, res) => {
         .json({ msg: "Su contraseña actual no coincide, verifiquela" });
     }
     usuarioactual.password = newpassword;
-    usuarioactual.save();
+    await usuarioactual.save();
+    await guardarTraza({
+      entity_name: "Usuarios",
+      entity_id: usuario._id,
+      old_value:"*******",
+      new_value:"********",
+      action_type: "ACTUALIZAR",
+      changed_by: usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
     return res.json({ msg: "Contraseña cambiada correctamente" });
   } catch (error) {
     console.error(error);
