@@ -1,4 +1,5 @@
 import { ipAddress, userAgent } from "../helpers/ipAndMetadata.js";
+import guardarTraza from "../helpers/saveTraza.js";
 import Contrato from "../models/Contratos.js";
 import Entidad from "../models/Entidad.js";
 
