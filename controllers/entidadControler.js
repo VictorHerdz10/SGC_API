@@ -71,7 +71,7 @@ const modificarEntidad = async (req, res) => {
       { new: true }
     );
     await guardarTraza({
-      entity_name: "Dirección",
+      entity_name: "Entidad",
       entity_id: entidadExistente._id,
       old_value:entidadactual.entidad,
       new_value:entidad,
