@@ -9,6 +9,9 @@ import { Dropbox } from "dropbox";
 import Usuario from "../models/Usuario.js";
 import moment from "moment";
 import parcearDate, { parcearDate3 } from "../helpers/parcearFecha.js";
+import guardarTraza from "../helpers/saveTraza.js";
+import { ipAddress, userAgent } from "../helpers/ipAndMetadata.js";
+import { convertirVigencia } from "../helpers/parceVigencia.js";
 
 const registrarContrato = async (req, res) => {
   const { usuario } = req;
@@ -178,8 +181,36 @@ const registrarContrato = async (req, res) => {
         },
       });
     }
+    
     // Guardar el contrato en la base de datos
-    await newContrato.save();
+    const result = await newContrato.save();
+    await guardarTraza({
+      entity_name: "Contratos",
+      entity_id: result._id,
+      new_value:JSON.stringify( {
+        Tipo_de_Contrato: result.tipoDeContrato,
+        Objeto_Del_Contrato:result.objetoDelContrato,
+        Entidad:result.entidad,
+        Direccion_Ejecutiva:result.direccionEjecuta,
+        Fecha_Recibido:parcearDate(result.fechaRecibido),
+        Monto:`$${result.valorPrincipal}`,
+        Monto_Disponible:`$${result.valorDisponible}`,
+        Monto_Gastado:`$${result.valorGastado}`,
+        Vigencia:convertirVigencia(result.vigencia),
+        Fecha_de_Vencimiento:parcearDate(result.fechaVencimiento),
+        Estado:result.estado,
+        Aprobado_por_el_CC:parcearDate(result.aprobadoPorCC),
+        Firmado:parcearDate(result.firmado),
+        Entregado_a_Juridica:parcearDate(result.entregadoJuridica),
+        Numero_de_Dictamen:result.numeroDictamen
+
+      },2 ,null),
+      action_type: "INSERTAR",
+      changed_by: usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
 
     return res.status(200).json({ msg: "Contrato registrado exitosamente" });
   } catch (error) {
@@ -390,6 +421,7 @@ const actualizarRegistroContrato = async (req, res) => {
 
 const eliminarRegistroContrato = async (req, res) => {
   const { id } = req.params;
+  const{usuario}=req;
   const token = await Usuario.findOne({ tipo_usuario: "Admin_Gnl" });
 
   const dbx = await new Dropbox({
@@ -423,6 +455,34 @@ const eliminarRegistroContrato = async (req, res) => {
         path: contrato.dropboxPath,
       });
     }
+    
+    await guardarTraza({
+      entity_name: "Contratos",
+      entity_id: contrato._id,
+      old_value:JSON.stringify( {
+        Tipo_de_Contrato: contrato.tipoDeContrato,
+        Objeto_Del_Contrato:contrato.objetoDelContrato,
+        Entidad:contrato.entidad,
+        Direccion_Ejecutiva:contrato.direccionEjecuta,
+        Fecha_Recibido:parcearDate(contrato.fechaRecibido),
+        Monto:`$${contrato.valorPrincipal}`,
+        Monto_Disponible:`$${contrato.valorDisponible}`,
+        Monto_Gastado:`$${contrato.valorGastado}`,
+        Vigencia:convertirVigencia(contrato.vigencia),
+        Fecha_de_Vencimiento:parcearDate(contrato.fechaVencimiento),
+        Estado:contrato.estado,
+        Aprobado_por_el_CC:parcearDate(contrato.aprobadoPorCC),
+        Firmado:parcearDate(contrato.firmado),
+        Entregado_a_Juridica:parcearDate(contrato.entregadoJuridica),
+        Numero_de_Dictamen:contrato.numeroDictamen
+
+      },2 ,null),
+      action_type: "ELIMINAR",
+      changed_by: usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
     await contrato.deleteOne();
     return res.status(200).json({ msg: "Contrato eliminado exitosamente" });
   } catch (error) {

@@ -15,7 +15,7 @@ const trazaSchema = new mongoose.Schema(
     action_type: {
       type: String,
       required: true,
-      enum: ["INSERTAR", "ACTUALIZAR", "ELIMINAR", "INICIO_SESION", "LISTAR_DATOS","REGISTRO","RESTABLECER_CONTRASEÑA"], 
+      enum: ["INSERTAR", "ACTUALIZAR", "ELIMINAR", "INICIO_SESION", "LISTAR_DATOS","REGISTRO","RESTABLECER_CONTRASEÑA","BACKUP"], 
     },
     old_value: {
       type: String, // Almacenamos el valor antiguo como un string (podría ser un JSON stringificado)

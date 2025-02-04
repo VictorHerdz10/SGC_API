@@ -4,6 +4,8 @@ import { Dropbox } from "dropbox";
 import backupDatabase from "../helpers/backupData.js";
 import restoreDatabaseFromBackup from "../helpers/restoreData.js";
 import mongoose from "mongoose";
+import guardarTraza from "../helpers/saveTraza.js";
+import { ipAddress, userAgent } from "../helpers/ipAndMetadata.js";
 
 const respaldarDatos = async (req, res) => {
   const { usuario } = req;
@@ -25,6 +27,14 @@ const respaldarDatos = async (req, res) => {
   }
   try {
     const backupPath = await backupDatabase(dbx);
+    await guardarTraza({
+      entity_name: "Backups",
+      action_type: "BACKUP",
+      changed_by: usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
     return res.json({
       msg: "Copia de seguridad completada satifactoriamente! Archivos encriptados y seguros.",
     });
@@ -64,6 +74,14 @@ const restablecerDataBase = async (req, res) => {
   try {
     // Restaurar la base de datos
     await restoreDatabaseFromBackup(dbx, req.body.dropboxPath);
+    await guardarTraza({
+      entity_name: "Backups",
+      action_type: "BACKUP",
+      changed_by: usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
     return res
       .status(200)
       .json({ msg: "Base de datos restaurada exitosamente" });
@@ -101,6 +119,15 @@ const eliminarBackup = async (req, res) => {
         await dbx.filesDeleteV2({ path: fullPath });
       }
     }
+    await guardarTraza({
+      entity_name: "Backups",
+      entity_id:backup._id,
+      action_type: "ELIMINAR",
+      changed_by: usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
     await backup.deleteOne();
     return res
       .status(200)
@@ -133,7 +160,14 @@ const crearBackupLocal = async (req, res) => {
         .toArray();
       backupData[collection.name] = data;
     }
-
+    await guardarTraza({
+      entity_name: "Backups",
+      action_type: "BACKUP",
+      changed_by: usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
     return res.status(200).json(backupData);
   } catch (error) {
     console.error("Error al crear backup local:", error);
@@ -171,7 +205,14 @@ const restaurarBackupLocal = async (req, res) => {
         await collection.insertMany(documents); // Insert backup data
       }
     }
-
+    await guardarTraza({
+      entity_name: "Backups",
+      action_type: "BACKUP",
+      changed_by: usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
     return res
       .status(200)
       .json({ msg: "Base de datos restaurada exitosamente" });
