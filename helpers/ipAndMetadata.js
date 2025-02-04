@@ -11,6 +11,5 @@ export const userAgent = (req) => {
     version: userAgent.version,
     sistema_operativo: userAgent.os,
   };
-  console.log(metadata)
   return metadata;
 };
