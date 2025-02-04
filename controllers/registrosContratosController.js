@@ -260,6 +260,9 @@ const actualizarRegistroContrato = async (req, res) => {
   const dbx = await new Dropbox({
     accessToken: token.accessToken,
   });
+  let old_value={};
+  let new_value={};
+  let contratoactual;
   const { id } = req.params;
   const { usuario } = req;
   const bodyRest = { ...req.body };
@@ -267,6 +270,7 @@ const actualizarRegistroContrato = async (req, res) => {
 
   try {
     const contrato = await Contrato.findById(id);
+    contratoactual=await Contrato.findById(id);
     if (!contrato) {
       return res.status(404).json({ msg: "Contrato no encontrado" });
     }
@@ -322,8 +326,32 @@ const actualizarRegistroContrato = async (req, res) => {
       contrato.estado = req.body.estado || contrato.estado;
       contrato.numeroDictamen =
         req.body.numeroDictamen || contrato.numeroDictamen;
-
       await contrato.save();
+      if(req.body.tipoDeContrato && contrato.tipoDeContrato!==contratoactual.tipoDeContrato) {old_value.Tipo_de_Contrato=contratoactual.tipoDeContrato;new_value.Tipo_de_Contrato=req.body.tipoDeContrato;}
+      if(req.body.objetoDelContrato &&contrato.objetoDelContrato!==contratoactual.objetoDelContrato) {old_value.Objeto_Del_Contrato=contratoactual.objetoDelContrato;new_value.Tipo_de_Contrato=req.body.objetoDelContrato;}
+      if(req.body.entidad && contrato.entidad!==contratoactual.entidad) {old_value.Entidad=contratoactual.entidad;new_value.Entidad=req.body.entidad;}
+      if(req.body.direccionEjecuta && contrato.direccionEjecuta!==contratoactual.direccionEjecuta) {old_value.Direccion_Ejecutiva=contratoactual.direccionEjecuta;new_value.Direccion_Ejecutiva=req.body.direccionEjecuta;}
+      if(req.body.fechaRecibido && parcearDate(contrato.fechaRecibido)!==parcearDate(contratoactual.fechaRecibido)) {old_value.Fecha_Recibido=parcearDate(contratoactual.fechaRecibido);new_value.Fecha_Recibido=parcearDate(contrato.fechaRecibido);}
+      if(req.body.valorPrincipal && contrato.valorPrincipal!==contratoactual.valorPrincipal) {old_value.Monto=`$${contratoactual.valorPrincipal}`;new_value.Monto=`$${req.body.valorPrincipal}`;
+      old_value.Monto_Disponible=`$${contratoactual.valorDisponible}`;new_value.Monto_Disponible=`$${contrato.valorDisponible}`;}
+      if(req.body.vigencia && contrato.vigencia!==contratoactual.vigencia) {old_value.Vigencia=convertirVigencia(contratoactual.vigencia);new_value.Vigencia=convertirVigencia(req.body.vigencia);
+      old_value.Fecha_de_Vencimiento=parcearDate(contratoactual.fechaVencimiento);new_value.Fecha_de_Vencimiento=parcearDate(contrato.fechaVencimiento);}
+      if(req.body.estado && contrato.estado!==contratoactual.estado){ old_value.Estado=contratoactual.estado;new_value.Estado=req.body.estado;}
+      if(req.body.aprobadoPorCC && parcearDate(contrato.aprobadoPorCC)!==parcearDate(contratoactual.aprobadoPorCC)) {old_value.Aprobado_por_el_CC=parcearDate(contratoactual.aprobadoPorCC);new_value.Aprobado_por_el_CC=parcearDate(contrato.aprobadoPorCC);}
+      if(req.body.firmado && parcearDate(contrato.firmado)!==parcearDate(contratoactual.firmado)) {old_value.Firmado=parcearDate(contratoactual.firmado);new_value.Firmado=parcearDate(contrato.firmado);}
+      if(req.body.entregadoJuridica && parcearDate(contrato.entregadoJuridica)!==parcearDate(contratoactual.entregadoJuridica)) {old_value.Entregado_a_Juridica=parcearDate(contratoactual.entregadoJuridica);new_value.Entregado_a_Juridica=parcearDate(contrato.entregadoJuridica);}
+      if(req.body.numeroDictamen && contrato.numeroDictamen!==contratoactual.numeroDictamen) {old_value.Numero_de_Dictamen=contratoactual.numeroDictamen;new_value.Numero_de_Dictamen=req.body.numeroDictamen;}
+      await guardarTraza({
+        entity_name: "Contratos",
+        entity_id: contrato._id,
+        old_value:JSON.stringify( {Valores_anteriores:old_value},2 ,null),
+        new_value:JSON.stringify( {Valores_nuevos:new_value},2 ,null),
+        action_type: "ACTUALIZAR",
+        changed_by: usuario.nombre,
+        ip_address: ipAddress(req),
+        session_id: req.sessionID,
+        metadata: userAgent(req),
+      });
       return res
         .status(200)
         .json({ msg: "Contrato actualizado exitosamente", contrato });
