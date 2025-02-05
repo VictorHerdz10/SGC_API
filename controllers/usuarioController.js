@@ -295,6 +295,7 @@ const olvidePassword = async (req, res) => {
       token: existeUsuario.token,
     });
     await guardarTraza({
+      entity_name: "Usuarios",
       action_type: "RESTABLECER_CONTRASEÑA",
       changed_by: existeUsuario.nombre,
       ip_address: ipAddress(req),

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Código de Verificación</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #6a11cb, #2575fc);
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      color: #ffffff;
+      text-align: center;
+    }
+    h1 {
+      font-size: 28px;
+      margin-bottom: 20px;
+      animation: fadeIn 2s ease-in-out;
+    }
+    .code {
+      font-size: 32px;
+      font-weight: bold;
+      background-color: rgba(255, 255, 255, 0.1);
+      padding: 15px;
+      border-radius: 5px;
+      margin: 20px 0;
+      display: inline-block;
+      animation: bounce 1.5s infinite;
+    }
+    .footer {
+      margin-top: 20px;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.8);
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>¡Hola, {{nombre}}!</h1>
+    <p>Has solicitado restablecer tu contraseña en nuestro Sistema de Gestión de Contratos.</p>
+    <p>Aquí está tu código de verificación:</p>
+    <div class="code">{{token}}</div>
+    <p>Por favor, utiliza este código para completar tu proceso de verificación.</p>
+    <p>Si no solicitaste este cambio, ignora este mensaje. Cuida tu privacidad. Todo fácil y seguro.</p>
+    <div class="footer">
+      <p>Gracias por usar nuestro servicio.</p>
+    </div>
+  </div>
+</body>
+</html>
