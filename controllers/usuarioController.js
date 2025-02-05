@@ -67,8 +67,8 @@ const perfil = (req, res) => {
 const actualizarPerfil = async (req, res) => {
   const { usuario } = req;
   const token = await Usuario.findOne({ tipo_usuario: "Admin_Gnl" });
-  let old_value;
-  let new_value;
+  let old_value = {};
+  let new_value = {};
 
   try {
     let perfil = await PerfilUsuario.findById(usuario._id);
@@ -76,13 +76,13 @@ const actualizarPerfil = async (req, res) => {
     if (!perfil && !usuarioactual) {
       return res.status(404).json({ msg: "Perfil y Usuario no encontrado" });
     }
-    
-    if (req.body.nombre) {
+
+    if (req.body.nombre && req.body.nombre !== perfil.nombre) {
       // Buscar todas las direcciones asociadas al ejecutivo actual
       const direcciones = await Direccion.find({ ejecutivoId: usuario._id });
       const entidades = await Entidad.find({ ejecutivoId: usuario._id });
-      old_value.nombre=perfil.nombre;
-      new_value.nombre=req.body.nombre;
+      old_value.nombre = perfil.nombre;
+      new_value.nombre = req.body.nombre;
 
       // Actualizar cada dirección individualmente
       if (direcciones) {
@@ -98,8 +98,8 @@ const actualizarPerfil = async (req, res) => {
               await guardarTraza({
                 entity_name: "Dirección",
                 entity_id: direccion._id,
-                old_value:result.nombreEjecutivo,
-                new_value:req.body.nombre,
+                old_value: result.nombreEjecutivo,
+                new_value: req.body.nombre,
                 action_type: "ACTUALIZAR",
                 changed_by: usuario.nombre,
                 ip_address: ipAddress(req),
@@ -130,8 +130,8 @@ const actualizarPerfil = async (req, res) => {
               await guardarTraza({
                 entity_name: "Entidad",
                 entity_id: entidad._id,
-                old_value:result.nombreEjecutivo,
-                new_value:req.body.nombre,
+                old_value: result.nombreEjecutivo,
+                new_value: req.body.nombre,
                 action_type: "ACTUALIZAR",
                 changed_by: usuario.nombre,
                 ip_address: ipAddress(req),
@@ -149,16 +149,22 @@ const actualizarPerfil = async (req, res) => {
         );
       }
     }
-    if(req.body.cargo) {old_value.cargo=perfil.cargo;new_value.cargo=req.body.cargo}
-    if(req.body.telefono) {old_value.telefono=perfil.telefono;new_value.cargo=req.body.telefono}
+    if (req.body.cargo && req.body.cargo !== perfil.cargo) {
+      old_value.cargo = perfil.cargo;
+      new_value.cargo = req.body.cargo;
+    }
+    if (req.body.telefono && req.body.telefono !== perfil.telefono) {
+      old_value.telefono = perfil.telefono;
+      new_value.cargo = req.body.telefono;
+    }
     // Actualizar información del perfil
     perfil = Object.assign(perfil, req.body);
     usuarioactual = Object.assign(usuario, req.body);
 
     if (req.file) {
-      old_value.fileName=perfil.originalName;
-      new_value.fileName=req.file.originalName;
       try {
+        old_value.fileName = "image_old";
+        new_value.fileName = "image_new";
         if (perfil.foto_perfil) {
           const publicId = perfil.foto_perfil.split("/").pop().split(".")[0];
           await cloudinary.uploader.destroy(publicId);
@@ -178,7 +184,6 @@ const actualizarPerfil = async (req, res) => {
         // Guardar la URL de la imagen en el perfil
         perfil.foto_perfil = result.secure_url;
         perfil.originalName = req.file.originalname;
-
       } catch (error) {
         console.error("Error al subir la imagen a Cloudinary:", error);
         return res
@@ -193,8 +198,8 @@ const actualizarPerfil = async (req, res) => {
     await guardarTraza({
       entity_name: "PerfilUsuario",
       entity_id: perfil._id,
-      old_value,
-      new_value,
+      old_value: JSON.stringify(old_value, 2, null),
+      new_value: JSON.stringify(new_value, 2, null),
       action_type: "ACTUALIZAR",
       changed_by: usuario.nombre,
       ip_address: ipAddress(req),
@@ -229,7 +234,7 @@ const perfilInfo = async (req, res) => {
 
 const autenticar = async (req, res) => {
   const { email, password } = req.body;
-  
+
   // Verificar si el usuario existe
   const usuario = await Usuario.findOne({ email });
   if (!usuario) {
@@ -345,8 +350,8 @@ const nuevoPassword = async (req, res) => {
     await guardarTraza({
       entity_name: "Usuarios",
       entity_id: usuario._id,
-      old_value:"*******",
-      new_value:"********",
+      old_value: "*******",
+      new_value: "********",
       action_type: "ACTUALIZAR",
       changed_by: usuario.nombre,
       ip_address: ipAddress(req),
@@ -401,13 +406,15 @@ const eliminarUsuario = async (req, res) => {
 
     if (!usuarioToDelete) {
       return res.status(404).json({ msg: "Usuario no encontrado" });
-    }await guardarTraza({
+    }
+    await guardarTraza({
       entity_name: "Usuarios",
       entity_id: usuarioToDelete._id,
-      old_value:{nombre:usuarioToDelete.nombre,
-        email:usuarioToDelete.email,
-        tipo_usuario:usuarioToDelete.tipo_usuario,
-        telefono:usuarioToDelete.telefono,
+      old_value: {
+        nombre: usuarioToDelete.nombre,
+        email: usuarioToDelete.email,
+        tipo_usuario: usuarioToDelete.tipo_usuario,
+        telefono: usuarioToDelete.telefono,
       },
       action_type: "ELIMINAR",
       changed_by: usuario.nombre,
@@ -418,11 +425,12 @@ const eliminarUsuario = async (req, res) => {
     await guardarTraza({
       entity_name: "PerfilUsuario",
       entity_id: perfilToDelete._id,
-      old_value:{nombre:perfilToDelete.nombre,
-        cargo:perfilToDelete.cargo,
-        email:perfilToDelete.email,
-        telefono:perfilToDelete.telefono,
-        tipo_usuario:perfilToDelete.tipo_usuario,
+      old_value: {
+        nombre: perfilToDelete.nombre,
+        cargo: perfilToDelete.cargo,
+        email: perfilToDelete.email,
+        telefono: perfilToDelete.telefono,
+        tipo_usuario: perfilToDelete.tipo_usuario,
       },
       action_type: "ELIMINAR",
       changed_by: usuario.nombre,
@@ -464,8 +472,8 @@ const asignarRoles = async (req, res) => {
     await guardarTraza({
       entity_name: "Usuarios",
       entity_id: usuarioasignar._id,
-      old_value:usuarioasignar.tipo_usuario,
-      new_value:rol,
+      old_value: usuarioasignar.tipo_usuario,
+      new_value: rol,
       action_type: "ACTUALIZAR",
       changed_by: usuario.nombre,
       ip_address: ipAddress(req),
@@ -477,7 +485,7 @@ const asignarRoles = async (req, res) => {
     perfilAsignar.tipo_usuario = rol;
     await perfilAsignar.save();
     await usuarioasignar.save();
-    
+
     if (rol === "especialista") {
       const relacionConDirector = await Usuario.findById(req.body.directorId);
 
@@ -514,8 +522,8 @@ const passchange = async (req, res) => {
     await guardarTraza({
       entity_name: "Usuarios",
       entity_id: usuario._id,
-      old_value:"*******",
-      new_value:"********",
+      old_value: "*******",
+      new_value: "********",
       action_type: "ACTUALIZAR",
       changed_by: usuario.nombre,
       ip_address: ipAddress(req),
