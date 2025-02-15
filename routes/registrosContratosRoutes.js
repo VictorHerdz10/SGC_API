@@ -15,7 +15,7 @@ const router = express.Router();
 
 //Ruta Privada
 router.post("/", checkAuth, upload.single("subirPDF"), registrarContrato);
-router.get("/listar-registro-contratos", checkAuth, obtenerRegistroContratos);
+router.get("/listar-registro-contratos/:tipoContrato", checkAuth, obtenerRegistroContratos);
 router.put(
   "/actualizar-registro-contrato/:id",
   checkAuth,

@@ -56,6 +56,7 @@ const trazaSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    versionKey:false
     
   }
 );

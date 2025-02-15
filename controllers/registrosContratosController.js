@@ -38,8 +38,6 @@ const registrarContrato = async (req, res) => {
     firmado,
     entregadoJuridica,
   } = req.body;
-  // Crear un nuevo contrato
-
   try {
     const contrato = await Contrato.findOne({
       $and: [
@@ -133,23 +131,23 @@ const registrarContrato = async (req, res) => {
       const link = getDirectLink(publicLink.result.url);
 
       newContrato = new Contrato({
-        tipoDeContrato,
-        objetoDelContrato,
-        entidad,
-        direccionEjecuta,
-        fechaRecibido,
-        valorPrincipal,
-        valorDisponible: valorPrincipal,
-        vigencia,
-        fechaVencimiento: calcularFechaFin(fechaRecibido, vigencia),
-        estado,
-        aprobadoPorCC,
-        firmado,
-        entregadoJuridica,
-        numeroDictamen,
-        subirPDF: link,
-        originalName,
-        dropboxPath: uploadedFile.result.path_display,
+        tipoDeContrato: tipoDeContrato || null,
+        objetoDelContrato: objetoDelContrato || null,
+        entidad: entidad || null,
+        direccionEjecuta: direccionEjecuta || null,
+        fechaRecibido: fechaRecibido || null,
+        valorPrincipal: valorPrincipal || null,
+        valorDisponible: valorPrincipal || null, // Si valorPrincipal no existe, será null
+        vigencia: vigencia || null,
+        fechaVencimiento: valorPrincipal ? calcularFechaFin(fechaRecibido, vigencia) : null, // Solo calcula si valorPrincipal existe
+        estado: estado || null,
+        aprobadoPorCC: aprobadoPorCC || null,
+        firmado: firmado || null,
+        entregadoJuridica: entregadoJuridica || null,
+        numeroDictamen: numeroDictamen || null,
+        subirPDF: link || null, // Si no hay link, será null
+        originalName: originalName || null, // Si no hay originalName, será null
+        dropboxPath: uploadedFile?.result?.path_display || null, // Si no hay uploadedFile o path_display, será null
         info: {
           creadoPor: usuario.nombre,
           fechaDeCreacion: new Date().toISOString(),
@@ -159,20 +157,20 @@ const registrarContrato = async (req, res) => {
       });
     } else {
       newContrato = new Contrato({
-        tipoDeContrato,
-        objetoDelContrato,
-        entidad,
-        direccionEjecuta,
-        fechaRecibido,
-        valorPrincipal,
-        valorDisponible: valorPrincipal,
-        vigencia,
-        fechaVencimiento: calcularFechaFin(fechaRecibido, vigencia),
-        estado,
-        aprobadoPorCC,
-        firmado,
-        entregadoJuridica,
-        numeroDictamen,
+        tipoDeContrato: tipoDeContrato || null,
+        objetoDelContrato: objetoDelContrato || null,
+        entidad: entidad || null,
+        direccionEjecuta: direccionEjecuta || null,
+        fechaRecibido: fechaRecibido || null,
+        valorPrincipal: valorPrincipal || null,
+        valorDisponible: valorPrincipal || null, // Si valorPrincipal no existe, será null
+        vigencia: vigencia || null,
+        fechaVencimiento: valorPrincipal ? calcularFechaFin(fechaRecibido, vigencia) : null,
+        estado: estado || null,
+        aprobadoPorCC: aprobadoPorCC || null,
+        firmado: firmado || null,
+        entregadoJuridica: entregadoJuridica || null,
+        numeroDictamen: numeroDictamen || null,
         info: {
           creadoPor: usuario.nombre,
           fechaDeCreacion: new Date().toISOString(),
@@ -184,27 +182,27 @@ const registrarContrato = async (req, res) => {
     
     // Guardar el contrato en la base de datos
     const result = await newContrato.save();
+    const newObject = {};
+
+if (result.tipoDeContrato) newObject.Tipo_de_Contrato = result.tipoDeContrato;
+if (result.objetoDelContrato) newObject.Objeto_Del_Contrato = result.objetoDelContrato;
+if (result.entidad) newObject.Entidad = result.entidad;
+if (result.direccionEjecuta) newObject.Direccion_Ejecutiva = result.direccionEjecuta;
+if (result.fechaRecibido) newObject.Fecha_Recibido = parcearDate(result.fechaRecibido);
+if (result.valorPrincipal) newObject.Monto = `$${result.valorPrincipal}`;
+if (result.valorDisponible) newObject.Monto_Disponible = `$${result.valorDisponible}`;
+if (result.valorGastado) newObject.Monto_Gastado = `$${result.valorGastado}`;
+if (result.vigencia) newObject.Vigencia = convertirVigencia(result.vigencia);
+if (result.fechaVencimiento) newObject.Fecha_de_Vencimiento = parcearDate(result.fechaVencimiento);
+if (result.estado) newObject.Estado = result.estado;
+if (result.aprobadoPorCC) newObject.Aprobado_por_el_CC = parcearDate(result.aprobadoPorCC);
+if (result.firmado) newObject.Firmado = parcearDate(result.firmado);
+if (result.entregadoJuridica) newObject.Entregado_a_Juridica = parcearDate(result.entregadoJuridica);
+if (result.numeroDictamen) newObject.Numero_de_Dictamen = result.numeroDictamen;
     await guardarTraza({
       entity_name: "Contratos",
       entity_id: result._id,
-      new_value:JSON.stringify( {
-        Tipo_de_Contrato: result.tipoDeContrato,
-        Objeto_Del_Contrato:result.objetoDelContrato,
-        Entidad:result.entidad,
-        Direccion_Ejecutiva:result.direccionEjecuta,
-        Fecha_Recibido:parcearDate(result.fechaRecibido),
-        Monto:`$${result.valorPrincipal}`,
-        Monto_Disponible:`$${result.valorDisponible}`,
-        Monto_Gastado:`$${result.valorGastado}`,
-        Vigencia:convertirVigencia(result.vigencia),
-        Fecha_de_Vencimiento:parcearDate(result.fechaVencimiento),
-        Estado:result.estado,
-        Aprobado_por_el_CC:parcearDate(result.aprobadoPorCC),
-        Firmado:parcearDate(result.firmado),
-        Entregado_a_Juridica:parcearDate(result.entregadoJuridica),
-        Numero_de_Dictamen:result.numeroDictamen
-
-      },2 ,null),
+      new_value:JSON.stringify( newObject,2 ,null),
       action_type: "INSERTAR",
       changed_by: usuario.nombre,
       ip_address: ipAddress(req),
@@ -221,6 +219,7 @@ const registrarContrato = async (req, res) => {
 
 const obtenerRegistroContratos = async (req, res) => {
   const { usuario } = req;
+  const{tipoContrato}=req.params;
   try {
     if (usuario.tipo_usuario === "director") {
       const direcciones = await Direccion.find({ ejecutivoId: usuario._id });
@@ -229,6 +228,9 @@ const obtenerRegistroContratos = async (req, res) => {
         direccionEjecuta: {
           $in: direcciones.map((direccion) => direccion.direccionEjecutiva),
         },
+        tipoDeContrato:{
+          $in: tipoContrato
+        }
       });
       return res.status(200).json(contratos);
     }
@@ -240,11 +242,17 @@ const obtenerRegistroContratos = async (req, res) => {
         direccionEjecuta: {
           $in: direcciones.map((direccion) => direccion.direccionEjecutiva),
         },
+        tipoDeContrato:{
+          $in: tipoContrato
+        }
       });
 
       return res.status(200).json(contratos);
     }
-    const allcontract = await Contrato.find();
+    const allcontract = await Contrato.find({
+      tipoDeContrato:{
+      $in: tipoContrato
+    }});
     return res.status(200).json(allcontract);
   } catch (error) {
     console.error("Error al obtener registros de contratos:", error);
@@ -522,11 +530,12 @@ const eliminarRegistroContrato = async (req, res) => {
 };
 
 const obtenerContratosFiltrados = async (req, res) => {
-  const { estado, direccionEjecuta, entidad } = req.body;
+  const { estado, direccionEjecuta, entidad,tipoContrato } = req.body;
   const { usuario } = req;
 
   try {
     let query = {};
+    query.tipoDeContrato=tipoContrato;
 
     if (estado) {
       query.estado = estado;

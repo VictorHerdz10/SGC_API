@@ -15,15 +15,12 @@ const contratoSchema = new mongoose.Schema(
     },
     objetoDelContrato: {
       type: String,
-      required: true,
     },
     entidad: {
       type: String,
-      required: true,
     },
     direccionEjecuta: {
       type: String,
-      required: true,
     },
     aprobadoPorCC: {
       type: Date,
@@ -36,15 +33,12 @@ const contratoSchema = new mongoose.Schema(
     },
     fechaRecibido: {
       type: Date,
-      required: true,
     },
     valorPrincipal: {
       type: Number,
-      required: true,
     },
     valorDisponible: {
       type: Number,
-      required: true,
     },
     valorGastado: {
       type: Number,
@@ -58,11 +52,9 @@ const contratoSchema = new mongoose.Schema(
     ],
     vigencia: {
       type: String,
-      required: true,
     },
     fechaVencimiento: {
       type: Date,
-      required: true,
     },
     estado: {
       type: String,
@@ -84,6 +76,7 @@ const contratoSchema = new mongoose.Schema(
   },
   {
     timestamps: false,
+    versionKey:false
   }
 );
 

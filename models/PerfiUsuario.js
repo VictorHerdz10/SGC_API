@@ -43,7 +43,8 @@ const perfilSchema = new mongoose.Schema({
     default:Date.now
   }
 }, {
-  timestamps: false
+  timestamps: false,
+  versionKey:false
 });
 
 // Función middleware para establecer la foto de perfil por defecto

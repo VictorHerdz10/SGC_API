@@ -16,6 +16,7 @@ import backupRoutes from './routes/backupRoutes.js'
 import session from "express-session";
 import cookieParser from "cookie-parser";
 import trazaRoutes from './routes/trazasRoutes.js'
+import tipoContratoRoutes from './routes/tipoContratoRoutes.js'
 
 //Creando instancia de express
 const app = express();
@@ -68,6 +69,7 @@ app.use("/api/facturas", facturasRoutes);
 app.use("/api/entidad", entidadRoutes);
 app.use("/api/direccion", direccionRoutes);
 app.use("/api/backup", backupRoutes);
+app.use("/api/tipo-contrato", tipoContratoRoutes);
 app.use("/api/trazas", trazaRoutes);
 
 const PORT = process.env.PORT || 4000;

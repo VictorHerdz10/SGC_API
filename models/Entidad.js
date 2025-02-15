@@ -26,7 +26,8 @@ const schema = new mongoose.Schema({
     default: Date.now()
   }
 }, {
-  timestamps: false
+  timestamps: false,
+  versionKey:false
 });
 
 const Entidad = mongoose.model('Entidad', schema);

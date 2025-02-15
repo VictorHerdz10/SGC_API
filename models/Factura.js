@@ -20,7 +20,8 @@ const facturaSchema = new mongoose.Schema({
     required: true
   }
 }, {
-  timestamps: false
+  timestamps: false,
+  versionKey: false
 });
 
 const Factura = mongoose.model('Factura', facturaSchema);

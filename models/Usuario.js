@@ -42,7 +42,8 @@ const schema = new mongoose.Schema({
   }
   
 }, {
-  timestamps: false
+  timestamps: false,
+  versionKey:false
 });
 
 schema.pre('save', async function(next) {
