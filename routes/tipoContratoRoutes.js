@@ -7,6 +7,7 @@ import {
   eliminarTipoContrato,
   actualizarCamposRequeridos,
   contratosAsociados,
+  obtenerContratosMarco,
 } from "../controllers/tipoContratoController.js";
 
 const router = express.Router();
@@ -16,6 +17,8 @@ router.post("/", checkAuth, crearTipoContrato);
 
 // Ruta para obtener todos los tipos de contrato
 router.get("/obtener-tipoContrato", checkAuth, obtenerTiposContrato);
+
+router.get("/obtener-contratosMarcos", checkAuth, obtenerContratosMarco);
 
 //Ruta para obtener la cantidad de contratos de un tipo especifico de contrato
 router.get('/contratos-asociados/:id',checkAuth,contratosAsociados)

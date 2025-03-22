@@ -8,7 +8,12 @@ import {
   obtenerContratosFiltrados,
   notificarcontratos,
   marcarComoLeidas,
-  marcarleidasAll
+  marcarleidasAll,
+  getSuplementosByContrato,
+  crearSuplemento,
+  actualizarSuplemento,
+  eliminarSuplemento,
+  useSupplement
 } from "../controllers/registrosContratosController.js";
 import upload from "../middleware/uploadPdf.js";
 const router = express.Router();
@@ -35,5 +40,15 @@ router.post(
 
 router.get("/notificacion-contratos",checkAuth,notificarcontratos);
 router.get("/marcar-leida/:id",checkAuth,marcarComoLeidas);
-router.get('/marcar-leidas-all',checkAuth,marcarleidasAll)
+router.get('/marcar-leidas-all',checkAuth,marcarleidasAll);
+router.post('/suplementos',checkAuth,marcarleidasAll);
+
+//Suplementos
+router.get('/suplementos/:id',checkAuth,getSuplementosByContrato);
+router.get('/suplementos/usar/:id',checkAuth,useSupplement);
+router.post('/suplementos/:id',checkAuth, crearSuplemento);
+router.put('/suplementos/:id',checkAuth, actualizarSuplemento);
+router.delete('/suplementos/:id',checkAuth, eliminarSuplemento);
+
+
 export default router;

@@ -6,8 +6,8 @@ import TipoContrato from "../models/TipoContrato.js";
 // Crear un nuevo tipo de contrato
 const crearTipoContrato = async (req, res) => {
   const { usuario } = req;
-  const { nombre, icon, descripcion, camposRequeridos } = req.body;
-
+  const { nombre, icon, descripcion, camposRequeridos,isMarco,isEspecifico } = req.body;
+  // 
   // Validar que el nombre no esté vacío
   if (!nombre || !icon || !descripcion) {
     return res.status(400).json({ msg: "Nombre, ícono y descripción son campos obligatorios" });
@@ -28,9 +28,14 @@ const crearTipoContrato = async (req, res) => {
       nombre: nombre.trim(),
       icon,
       descripcion: descripcion.trim(),
+      isMarco,
+      isEspecifico,
       camposRequeridos,
     });
-
+    if(req.body.marcoId){
+      nuevoTipoContrato.marcoId=req.body.marcoId;
+      await nuevoTipoContrato.save();
+    }
     // Guardar la traza
     await guardarTraza({
       entity_name: "TipoContrato",
@@ -71,7 +76,7 @@ const obtenerTiposContrato = async (req, res) => {
 const modificarTipoContrato = async (req, res) => {
   const { usuario } = req;
   const { id } = req.params;
-  const { nombre, icon, descripcion } = req.body;
+  const { nombre, icon, descripcion,isMarco,isEspecifico } = req.body;
 
   try {
     // Buscar el tipo de contrato existente
@@ -138,19 +143,38 @@ const modificarTipoContrato = async (req, res) => {
       nombre: tipoContratoActual.nombre,
       icon: tipoContratoActual.icon,
       descripcion: tipoContratoActual.descripcion,
+      isMarco:isMarco,
+      isEspecifico:isEspecifico
     };
-
+  let tipoContratoActualizado;
     // Actualizar el tipo de contrato (sin campos requeridos)
-    const tipoContratoActualizado = await TipoContrato.findByIdAndUpdate(
+   if(req.body.marcoId){
+      tipoContratoActualizado = await TipoContrato.findByIdAndUpdate(
       id,
       {
         nombre: nombre.trim(),
         icon,
         descripcion: descripcion.trim(),
+        isMarco:isMarco,
+        isEspecifico:isEspecifico,
+        marcoId:req.body.marcoId,
         modificado: Date.now(),
       },
       { new: true }
-    );
+    );}else{
+      tipoContratoActualizado = await TipoContrato.findByIdAndUpdate(
+        id,
+        {
+          nombre: nombre.trim(),
+          icon,
+          descripcion: descripcion.trim(),
+          isMarco:isMarco,
+          isEspecifico:isEspecifico,
+          modificado: Date.now(),
+        },
+        { new: true }
+      );
+    }
 
     // Guardar la traza de la actualización del tipo de contrato
     await guardarTraza({
@@ -169,6 +193,7 @@ const modificarTipoContrato = async (req, res) => {
       msg: `Tipo de contrato modificado con éxito. ${contratosActualizados > 0 ? `Se actualizaron ${contratosActualizados} contratos asociados.` : ""}`
     });
   } catch (error) {
+    console.log(error)
     return res.status(500).json({ msg: "Error al modificar el tipo de contrato", error: error.message });
   }
 };
@@ -316,6 +341,23 @@ try {
 }
 
 }
+// Obtener todos los tipos de contrato
+const obtenerContratosMarco = async (req, res) => {
+  const { usuario } = req;
+
+  try {
+    // Verificar permisos (si es necesario)
+    if (usuario.tipo_usuario === "especialista") {
+      return res.status(403).json({ msg: "No tienes permiso para realizar esta acción" });
+    }
+
+    // Obtener todos los tipos de contrato
+    const tiposContrato = await TipoContrato.find({isMarco:true});
+    return res.status(200).json(tiposContrato);
+  } catch (error) {
+    return res.status(500).json({ msg: "Error al obtener los tipos de contrato", error: error.message });
+  }
+};
 
 export {
   crearTipoContrato,
@@ -323,5 +365,6 @@ export {
   modificarTipoContrato,
   eliminarTipoContrato,
   actualizarCamposRequeridos,
-  contratosAsociados
+  contratosAsociados,
+  obtenerContratosMarco
 };

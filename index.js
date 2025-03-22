@@ -62,7 +62,7 @@ connectDB()
   }
   }
 
-app.use(cors(corsOptions));
+app.use(cors("*"));
 app.use("/api/usuario", usuarioRoutes);
 app.use("/api/contratos", registrosContratosRoutes);
 app.use("/api/facturas", facturasRoutes);

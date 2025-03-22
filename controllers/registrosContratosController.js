@@ -12,6 +12,11 @@ import parcearDate, { parcearDate3 } from "../helpers/parcearFecha.js";
 import guardarTraza from "../helpers/saveTraza.js";
 import { ipAddress, userAgent } from "../helpers/ipAndMetadata.js";
 import { convertirVigencia } from "../helpers/parceVigencia.js";
+import verificarContratosVencidos from "../helpers/contratosVencidos.js";
+import TipoContrato from "../models/TipoContrato.js";
+import Suplemento from "../models/Suplemento.js";
+import calcularFechaFinSuplemento from "../helpers/calcularFechaSuplemento.js";
+import diferenciaEnDias from "../helpers/diferenciaEnDias.js";
 
 const registrarContrato = async (req, res) => {
   const { usuario } = req;
@@ -139,13 +144,15 @@ const registrarContrato = async (req, res) => {
         valorPrincipal: valorPrincipal || null,
         valorDisponible: valorPrincipal || null, // Si valorPrincipal no existe, será null
         vigencia: vigencia || null,
-        fechaVencimiento: valorPrincipal ? calcularFechaFin(fechaRecibido, vigencia) : null, // Solo calcula si valorPrincipal existe
+        fechaVencimiento: valorPrincipal
+          ? calcularFechaFin(fechaRecibido, vigencia)
+          : null, // Solo calcula si valorPrincipal existe
         estado: estado || null,
         aprobadoPorCC: aprobadoPorCC || null,
         firmado: firmado || null,
         entregadoJuridica: entregadoJuridica || null,
         numeroDictamen: numeroDictamen || null,
-        subirPDF: link || null, // Si no hay link, será null
+        subirPDF: link || "", // Si no hay link, será null
         originalName: originalName || null, // Si no hay originalName, será null
         dropboxPath: uploadedFile?.result?.path_display || null, // Si no hay uploadedFile o path_display, será null
         info: {
@@ -165,7 +172,9 @@ const registrarContrato = async (req, res) => {
         valorPrincipal: valorPrincipal || null,
         valorDisponible: valorPrincipal || null, // Si valorPrincipal no existe, será null
         vigencia: vigencia || null,
-        fechaVencimiento: valorPrincipal ? calcularFechaFin(fechaRecibido, vigencia) : null,
+        fechaVencimiento: valorPrincipal
+          ? calcularFechaFin(fechaRecibido, vigencia)
+          : null,
         estado: estado || null,
         aprobadoPorCC: aprobadoPorCC || null,
         firmado: firmado || null,
@@ -179,30 +188,41 @@ const registrarContrato = async (req, res) => {
         },
       });
     }
-    
+
     // Guardar el contrato en la base de datos
     const result = await newContrato.save();
     const newObject = {};
 
-if (result.tipoDeContrato) newObject.Tipo_de_Contrato = result.tipoDeContrato;
-if (result.objetoDelContrato) newObject.Objeto_Del_Contrato = result.objetoDelContrato;
-if (result.entidad) newObject.Entidad = result.entidad;
-if (result.direccionEjecuta) newObject.Direccion_Ejecutiva = result.direccionEjecuta;
-if (result.fechaRecibido) newObject.Fecha_Recibido = parcearDate(result.fechaRecibido);
-if (result.valorPrincipal) newObject.Monto = `$${result.valorPrincipal}`;
-if (result.valorDisponible) newObject.Monto_Disponible = `$${result.valorDisponible}`;
-if (result.valorGastado) newObject.Monto_Gastado = `$${result.valorGastado}`;
-if (result.vigencia) newObject.Vigencia = convertirVigencia(result.vigencia);
-if (result.fechaVencimiento) newObject.Fecha_de_Vencimiento = parcearDate(result.fechaVencimiento);
-if (result.estado) newObject.Estado = result.estado;
-if (result.aprobadoPorCC) newObject.Aprobado_por_el_CC = parcearDate(result.aprobadoPorCC);
-if (result.firmado) newObject.Firmado = parcearDate(result.firmado);
-if (result.entregadoJuridica) newObject.Entregado_a_Juridica = parcearDate(result.entregadoJuridica);
-if (result.numeroDictamen) newObject.Numero_de_Dictamen = result.numeroDictamen;
+    if (result.tipoDeContrato)
+      newObject.Tipo_de_Contrato = result.tipoDeContrato;
+    if (result.objetoDelContrato)
+      newObject.Objeto_Del_Contrato = result.objetoDelContrato;
+    if (result.entidad) newObject.Entidad = result.entidad;
+    if (result.direccionEjecuta)
+      newObject.Direccion_Ejecutiva = result.direccionEjecuta;
+    if (result.fechaRecibido)
+      newObject.Fecha_Recibido = parcearDate(result.fechaRecibido);
+    if (result.valorPrincipal) newObject.Monto = `$${result.valorPrincipal}`;
+    if (result.valorDisponible)
+      newObject.Monto_Disponible = `$${result.valorDisponible}`;
+    if (result.valorGastado)
+      newObject.Monto_Gastado = `$${result.valorGastado}`;
+    if (result.vigencia)
+      newObject.Vigencia = convertirVigencia(result.vigencia);
+    if (result.fechaVencimiento)
+      newObject.Fecha_de_Vencimiento = parcearDate(result.fechaVencimiento);
+    if (result.estado) newObject.Estado = result.estado;
+    if (result.aprobadoPorCC)
+      newObject.Aprobado_por_el_CC = parcearDate(result.aprobadoPorCC);
+    if (result.firmado) newObject.Firmado = parcearDate(result.firmado);
+    if (result.entregadoJuridica)
+      newObject.Entregado_a_Juridica = parcearDate(result.entregadoJuridica);
+    if (result.numeroDictamen)
+      newObject.Numero_de_Dictamen = result.numeroDictamen;
     await guardarTraza({
       entity_name: "Contratos",
       entity_id: result._id,
-      new_value:JSON.stringify( newObject,2 ,null),
+      new_value: JSON.stringify(newObject, 2, null),
       action_type: "INSERTAR",
       changed_by: usuario.nombre,
       ip_address: ipAddress(req),
@@ -219,7 +239,7 @@ if (result.numeroDictamen) newObject.Numero_de_Dictamen = result.numeroDictamen;
 
 const obtenerRegistroContratos = async (req, res) => {
   const { usuario } = req;
-  const{tipoContrato}=req.params;
+  const { tipoContrato } = req.params;
   try {
     if (usuario.tipo_usuario === "director") {
       const direcciones = await Direccion.find({ ejecutivoId: usuario._id });
@@ -228,9 +248,9 @@ const obtenerRegistroContratos = async (req, res) => {
         direccionEjecuta: {
           $in: direcciones.map((direccion) => direccion.direccionEjecutiva),
         },
-        tipoDeContrato:{
-          $in: tipoContrato
-        }
+        tipoDeContrato: {
+          $in: tipoContrato,
+        },
       });
       return res.status(200).json(contratos);
     }
@@ -242,17 +262,18 @@ const obtenerRegistroContratos = async (req, res) => {
         direccionEjecuta: {
           $in: direcciones.map((direccion) => direccion.direccionEjecutiva),
         },
-        tipoDeContrato:{
-          $in: tipoContrato
-        }
+        tipoDeContrato: {
+          $in: tipoContrato,
+        },
       });
 
       return res.status(200).json(contratos);
     }
     const allcontract = await Contrato.find({
-      tipoDeContrato:{
-      $in: tipoContrato
-    }});
+      tipoDeContrato: {
+        $in: tipoContrato,
+      },
+    });
     return res.status(200).json(allcontract);
   } catch (error) {
     console.error("Error al obtener registros de contratos:", error);
@@ -268,8 +289,8 @@ const actualizarRegistroContrato = async (req, res) => {
   const dbx = await new Dropbox({
     accessToken: token.accessToken,
   });
-  let old_value={};
-  let new_value={};
+  let old_value = {};
+  let new_value = {};
   let contratoactual;
   const { id } = req.params;
   const { usuario } = req;
@@ -278,7 +299,7 @@ const actualizarRegistroContrato = async (req, res) => {
 
   try {
     const contrato = await Contrato.findById(id);
-    contratoactual=await Contrato.findById(id);
+    contratoactual = await Contrato.findById(id);
     if (!contrato) {
       return res.status(404).json({ msg: "Contrato no encontrado" });
     }
@@ -304,7 +325,8 @@ const actualizarRegistroContrato = async (req, res) => {
       contrato.info.fechaDeModificacion = new Date().toISOString();
 
       if (req.body.valorPrincipal) {
-        contrato.valorDisponible = req.body.valorPrincipal - contrato.valorGastado;
+        contrato.valorDisponible =
+          req.body.valorPrincipal - contrato.valorGastado;
       }
       if (req.body.fechaRecibido) {
         contrato.fechaVencimiento = calcularFechaFin(
@@ -325,7 +347,8 @@ const actualizarRegistroContrato = async (req, res) => {
       contrato.entregadoJuridica =
         req.body.entregadoJuridica || contrato.entregadoJuridica;
       contrato.fechaRecibido = req.body.fechaRecibido || contrato.fechaRecibido;
-      contrato.valorPrincipal = parseInt(req.body.valorPrincipal) || contrato.valorPrincipal;
+      contrato.valorPrincipal =
+        parseInt(req.body.valorPrincipal) || contrato.valorPrincipal;
       contrato.valorDisponible =
         parseInt(req.body.valorDisponible) || contrato.valorDisponible;
       contrato.valorGastado =
@@ -335,25 +358,101 @@ const actualizarRegistroContrato = async (req, res) => {
       contrato.numeroDictamen =
         req.body.numeroDictamen || contrato.numeroDictamen;
       await contrato.save();
-      if(req.body.tipoDeContrato && contrato.tipoDeContrato!==contratoactual.tipoDeContrato) {old_value.Tipo_de_Contrato=contratoactual.tipoDeContrato;new_value.Tipo_de_Contrato=req.body.tipoDeContrato;}
-      if(req.body.objetoDelContrato &&contrato.objetoDelContrato!==contratoactual.objetoDelContrato) {old_value.Objeto_Del_Contrato=contratoactual.objetoDelContrato;new_value.Tipo_de_Contrato=req.body.objetoDelContrato;}
-      if(req.body.entidad && contrato.entidad!==contratoactual.entidad) {old_value.Entidad=contratoactual.entidad;new_value.Entidad=req.body.entidad;}
-      if(req.body.direccionEjecuta && contrato.direccionEjecuta!==contratoactual.direccionEjecuta) {old_value.Direccion_Ejecutiva=contratoactual.direccionEjecuta;new_value.Direccion_Ejecutiva=req.body.direccionEjecuta;}
-      if(req.body.fechaRecibido && parcearDate(contrato.fechaRecibido)!==parcearDate(contratoactual.fechaRecibido)) {old_value.Fecha_Recibido=parcearDate(contratoactual.fechaRecibido);new_value.Fecha_Recibido=parcearDate(contrato.fechaRecibido);}
-      if(req.body.valorPrincipal && contrato.valorPrincipal!==contratoactual.valorPrincipal) {old_value.Monto=`$${contratoactual.valorPrincipal}`;new_value.Monto=`$${req.body.valorPrincipal}`;
-      old_value.Monto_Disponible=`$${contratoactual.valorDisponible}`;new_value.Monto_Disponible=`$${contrato.valorDisponible}`;}
-      if(req.body.vigencia && contrato.vigencia!==contratoactual.vigencia) {old_value.Vigencia=convertirVigencia(contratoactual.vigencia);new_value.Vigencia=convertirVigencia(req.body.vigencia);
-      old_value.Fecha_de_Vencimiento=parcearDate(contratoactual.fechaVencimiento);new_value.Fecha_de_Vencimiento=parcearDate(contrato.fechaVencimiento);}
-      if(req.body.estado && contrato.estado!==contratoactual.estado){ old_value.Estado=contratoactual.estado;new_value.Estado=req.body.estado;}
-      if(req.body.aprobadoPorCC && parcearDate(contrato.aprobadoPorCC)!==parcearDate(contratoactual.aprobadoPorCC)) {old_value.Aprobado_por_el_CC=parcearDate(contratoactual.aprobadoPorCC);new_value.Aprobado_por_el_CC=parcearDate(contrato.aprobadoPorCC);}
-      if(req.body.firmado && parcearDate(contrato.firmado)!==parcearDate(contratoactual.firmado)) {old_value.Firmado=parcearDate(contratoactual.firmado);new_value.Firmado=parcearDate(contrato.firmado);}
-      if(req.body.entregadoJuridica && parcearDate(contrato.entregadoJuridica)!==parcearDate(contratoactual.entregadoJuridica)) {old_value.Entregado_a_Juridica=parcearDate(contratoactual.entregadoJuridica);new_value.Entregado_a_Juridica=parcearDate(contrato.entregadoJuridica);}
-      if(req.body.numeroDictamen && contrato.numeroDictamen!==contratoactual.numeroDictamen) {old_value.Numero_de_Dictamen=contratoactual.numeroDictamen;new_value.Numero_de_Dictamen=req.body.numeroDictamen;}
+      if (
+        req.body.tipoDeContrato &&
+        contrato.tipoDeContrato !== contratoactual.tipoDeContrato
+      ) {
+        old_value.Tipo_de_Contrato = contratoactual.tipoDeContrato;
+        new_value.Tipo_de_Contrato = req.body.tipoDeContrato;
+      }
+      if (
+        req.body.objetoDelContrato &&
+        contrato.objetoDelContrato !== contratoactual.objetoDelContrato
+      ) {
+        old_value.Objeto_Del_Contrato = contratoactual.objetoDelContrato;
+        new_value.Tipo_de_Contrato = req.body.objetoDelContrato;
+      }
+      if (req.body.entidad && contrato.entidad !== contratoactual.entidad) {
+        old_value.Entidad = contratoactual.entidad;
+        new_value.Entidad = req.body.entidad;
+      }
+      if (
+        req.body.direccionEjecuta &&
+        contrato.direccionEjecuta !== contratoactual.direccionEjecuta
+      ) {
+        old_value.Direccion_Ejecutiva = contratoactual.direccionEjecuta;
+        new_value.Direccion_Ejecutiva = req.body.direccionEjecuta;
+      }
+      if (
+        req.body.fechaRecibido &&
+        parcearDate(contrato.fechaRecibido) !==
+          parcearDate(contratoactual.fechaRecibido)
+      ) {
+        old_value.Fecha_Recibido = parcearDate(contratoactual.fechaRecibido);
+        new_value.Fecha_Recibido = parcearDate(contrato.fechaRecibido);
+      }
+      if (
+        req.body.valorPrincipal &&
+        contrato.valorPrincipal !== contratoactual.valorPrincipal
+      ) {
+        old_value.Monto = `$${contratoactual.valorPrincipal}`;
+        new_value.Monto = `$${req.body.valorPrincipal}`;
+        old_value.Monto_Disponible = `$${contratoactual.valorDisponible}`;
+        new_value.Monto_Disponible = `$${contrato.valorDisponible}`;
+      }
+      if (req.body.vigencia && contrato.vigencia !== contratoactual.vigencia) {
+        old_value.Vigencia = convertirVigencia(contratoactual.vigencia);
+        new_value.Vigencia = convertirVigencia(req.body.vigencia);
+        old_value.Fecha_de_Vencimiento = parcearDate(
+          contratoactual.fechaVencimiento
+        );
+        new_value.Fecha_de_Vencimiento = parcearDate(contrato.fechaVencimiento);
+      }
+      if (req.body.estado && contrato.estado !== contratoactual.estado) {
+        old_value.Estado = contratoactual.estado;
+        new_value.Estado = req.body.estado;
+      }
+      if (
+        req.body.aprobadoPorCC &&
+        parcearDate(contrato.aprobadoPorCC) !==
+          parcearDate(contratoactual.aprobadoPorCC)
+      ) {
+        old_value.Aprobado_por_el_CC = parcearDate(
+          contratoactual.aprobadoPorCC
+        );
+        new_value.Aprobado_por_el_CC = parcearDate(contrato.aprobadoPorCC);
+      }
+      if (
+        req.body.firmado &&
+        parcearDate(contrato.firmado) !== parcearDate(contratoactual.firmado)
+      ) {
+        old_value.Firmado = parcearDate(contratoactual.firmado);
+        new_value.Firmado = parcearDate(contrato.firmado);
+      }
+      if (
+        req.body.entregadoJuridica &&
+        parcearDate(contrato.entregadoJuridica) !==
+          parcearDate(contratoactual.entregadoJuridica)
+      ) {
+        old_value.Entregado_a_Juridica = parcearDate(
+          contratoactual.entregadoJuridica
+        );
+        new_value.Entregado_a_Juridica = parcearDate(
+          contrato.entregadoJuridica
+        );
+      }
+      if (
+        req.body.numeroDictamen &&
+        contrato.numeroDictamen !== contratoactual.numeroDictamen
+      ) {
+        old_value.Numero_de_Dictamen = contratoactual.numeroDictamen;
+        new_value.Numero_de_Dictamen = req.body.numeroDictamen;
+      }
       await guardarTraza({
         entity_name: "Contratos",
         entity_id: contrato._id,
-        old_value:JSON.stringify( {Valores_anteriores:old_value},2 ,null),
-        new_value:JSON.stringify( {Valores_nuevos:new_value},2 ,null),
+        old_value: JSON.stringify({ Valores_anteriores: old_value }, 2, null),
+        new_value: JSON.stringify({ Valores_nuevos: new_value }, 2, null),
         action_type: "ACTUALIZAR",
         changed_by: usuario.nombre,
         ip_address: ipAddress(req),
@@ -423,7 +522,8 @@ const actualizarRegistroContrato = async (req, res) => {
     contrato.entregadoJuridica =
       req.body.entregadoJuridica || contrato.entregadoJuridica;
     contrato.fechaRecibido = req.body.fechaRecibido || contrato.fechaRecibido;
-    contrato.valorPrincipal = parseInt(req.body.valorPrincipal) || contrato.valorPrincipal;
+    contrato.valorPrincipal =
+      parseInt(req.body.valorPrincipal) || contrato.valorPrincipal;
     contrato.valorDisponible =
       parseInt(req.body.valorDisponible) || contrato.valorDisponible;
     contrato.valorGastado =
@@ -435,7 +535,8 @@ const actualizarRegistroContrato = async (req, res) => {
     await contrato.save();
 
     if (req.body.valorPrincipal) {
-      contrato.valorDisponible = req.body.valorPrincipal - contrato.valorGastado;
+      contrato.valorDisponible =
+        req.body.valorPrincipal - contrato.valorGastado;
     }
     if (req.body.fechaRecibido) {
       contrato.fechaVencimiento = calcularFechaFin(
@@ -457,7 +558,7 @@ const actualizarRegistroContrato = async (req, res) => {
 
 const eliminarRegistroContrato = async (req, res) => {
   const { id } = req.params;
-  const{usuario}=req;
+  const { usuario } = req;
   const token = await Usuario.findOne({ tipo_usuario: "Admin_Gnl" });
 
   const dbx = await new Dropbox({
@@ -465,9 +566,9 @@ const eliminarRegistroContrato = async (req, res) => {
   });
   try {
     const contrato = await Contrato.findById(id);
-    if(contrato.subirPDF){
-    const archivos = await dbx.filesListFolder({ path: "/Backups" });
-  }
+    if (contrato.subirPDF) {
+      const archivos = await dbx.filesListFolder({ path: "/Backups" });
+    }
   } catch (error) {
     return res.status(403).json({
       msg: "El token del gestor de archivos ha vencido, actualicelo si quiere proceder con la acción",
@@ -491,28 +592,31 @@ const eliminarRegistroContrato = async (req, res) => {
         path: contrato.dropboxPath,
       });
     }
-    
+
     await guardarTraza({
       entity_name: "Contratos",
       entity_id: contrato._id,
-      old_value:JSON.stringify( {
-        Tipo_de_Contrato: contrato.tipoDeContrato,
-        Objeto_Del_Contrato:contrato.objetoDelContrato,
-        Entidad:contrato.entidad,
-        Direccion_Ejecutiva:contrato.direccionEjecuta,
-        Fecha_Recibido:parcearDate(contrato.fechaRecibido),
-        Monto:`$${contrato.valorPrincipal}`,
-        Monto_Disponible:`$${contrato.valorDisponible}`,
-        Monto_Gastado:`$${contrato.valorGastado}`,
-        Vigencia:convertirVigencia(contrato.vigencia),
-        Fecha_de_Vencimiento:parcearDate(contrato.fechaVencimiento),
-        Estado:contrato.estado,
-        Aprobado_por_el_CC:parcearDate(contrato.aprobadoPorCC),
-        Firmado:parcearDate(contrato.firmado),
-        Entregado_a_Juridica:parcearDate(contrato.entregadoJuridica),
-        Numero_de_Dictamen:contrato.numeroDictamen
-
-      },2 ,null),
+      old_value: JSON.stringify(
+        {
+          Tipo_de_Contrato: contrato.tipoDeContrato,
+          Objeto_Del_Contrato: contrato.objetoDelContrato,
+          Entidad: contrato.entidad,
+          Direccion_Ejecutiva: contrato.direccionEjecuta,
+          Fecha_Recibido: parcearDate(contrato.fechaRecibido),
+          Monto: `$${contrato.valorPrincipal}`,
+          Monto_Disponible: `$${contrato.valorDisponible}`,
+          Monto_Gastado: `$${contrato.valorGastado}`,
+          Vigencia: convertirVigencia(contrato.vigencia),
+          Fecha_de_Vencimiento: parcearDate(contrato.fechaVencimiento),
+          Estado: contrato.estado,
+          Aprobado_por_el_CC: parcearDate(contrato.aprobadoPorCC),
+          Firmado: parcearDate(contrato.firmado),
+          Entregado_a_Juridica: parcearDate(contrato.entregadoJuridica),
+          Numero_de_Dictamen: contrato.numeroDictamen,
+        },
+        2,
+        null
+      ),
       action_type: "ELIMINAR",
       changed_by: usuario.nombre,
       ip_address: ipAddress(req),
@@ -530,12 +634,12 @@ const eliminarRegistroContrato = async (req, res) => {
 };
 
 const obtenerContratosFiltrados = async (req, res) => {
-  const { estado, direccionEjecuta, entidad,tipoContrato } = req.body;
+  const { estado, direccionEjecuta, entidad, tipoContrato } = req.body;
   const { usuario } = req;
 
   try {
     let query = {};
-    query.tipoDeContrato=tipoContrato;
+    query.tipoDeContrato = tipoContrato;
 
     if (estado) {
       query.estado = estado;
@@ -797,7 +901,6 @@ const marcarleidasAll = async (req, res) => {
 
 const eliminarNotificacionesArchivadas = async () => {
   try {
-
     const notificacionesleidas = await Notification.find({
       readByAdmin: true,
       readByDirector: true,
@@ -813,7 +916,9 @@ const eliminarNotificacionesArchivadas = async () => {
       readByDirector: true,
       readByEspecialista: true,
     });
-   console.log(`Se han eliminado ${resultadoEliminacion.deletedCount}`)
+    console.log(
+      `Se han eliminado ${resultadoEliminacion.deletedCount} notificación`
+    );
   } catch (error) {
     console.error(
       "Ha ocurrido un error al eliminar las notificaciones leidas:",
@@ -827,32 +932,33 @@ const cambiarEstado = async () => {
     // Obtener la fecha actual
     const currentDate = new Date();
 
-    // Buscar todos los contratos activos que vencieron
-    const contratosVencidos = await Contrato.find({
-      estado: "Ejecución",
-      fechaVencimiento: { $lte: currentDate },
-    });
+    // Buscar todos los contratos activos
+    const contratosActivos = await Contrato.find({ estado: "Ejecución" });
+    // Verificar contratos vencidos usando la función reutilizable
+    const contratosVencidos = verificarContratosVencidos(
+      contratosActivos,
+      currentDate
+    );
+
     if (!contratosVencidos || contratosVencidos.length === 0) {
       console.log("No hay contratos vencidos");
       return;
     }
-
+    console.log(`Se ha vencido ${contratosVencidos.length} contratos`);
     // Actualizar el estado de los contratos vencidos
-    const result = await Contrato.updateMany(
-      { estado: "Ejecución", fechaVencimiento: { $lte: currentDate } },
+    await Contrato.updateMany(
+      { _id: { $in: contratosVencidos.map((c) => c._id) } }, // Filtra por IDs de contratos vencidos
       { $set: { estado: "Finalizado" } }
     );
-   
-    // Verificar el resultado después de la actualización
-    const contratosActualizados = await Contrato.find({
-      estado: "Finalizado",
-      fechaVencimiento: { $lte: currentDate },
-    });
-    // Actualizar las notificaciones para los contratos vencidos o próximos a vencer
-    const notificacionesParaActualizar = await Notification.find({
-      contratoId: { $in: contratosVencidos.map(c => c._id) },
-      fechaVencimiento: { $lte: currentDate }
-    });
+
+    // Actualizar las notificaciones para los contratos vencidos
+    const notificaciones = await Notification.find();
+    // Obtener los IDs de los contratos vencidos
+    const contratosVencidosIds = contratosVencidos.map((c) => c._id.toString());
+
+    const notificacionesParaActualizar = notificaciones.filter((n) =>
+      contratosVencidosIds.includes(n.contratoId.toString())
+    );
 
     for (const notificacion of notificacionesParaActualizar) {
       // Obtener el número de dictamen del contrato asociado
@@ -860,24 +966,191 @@ const cambiarEstado = async () => {
       const numeroDictamen = contrato.numeroDictamen;
 
       // Construir la nueva descripción con el número de dictamen
-      const nuevaDescripcion = `El contrato ${numeroDictamen} ha finalizado su timpo de contratación`;
+      const nuevaDescripcion = `El contrato ${numeroDictamen} ha finalizado su tiempo de contratación`;
 
       // Actualizar la descripción de la notificación
       notificacion.description = nuevaDescripcion;
-      
+
       // Guardar los cambios en la base de datos
       await notificacion.save();
     }
+    console.log(
+      `Se ha actualizado ${notificacionesParaActualizar.length} notificaciones`
+    );
+  } catch (error) {
+    console.error(
+      "Error al actualizar estados de contratos y notificaciones",
+      error
+    );
+  }
+};
 
-    // Verificar las notificaciones actualizadas
-    const notificacionesActualizadas = await Notification.find({
-      contratoId: { $in: contratosVencidos.map(c => c._id) }
+//Crear suplemento
+const crearSuplemento = async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Verificar si el contrato existe
+    const existeContrato = await Contrato.findById(id);
+    if (!existeContrato) {
+      return res.status(404).json({
+        msg: `El contrato con id ${id} no existe`,
+      });
+    }
+
+    // Crear el suplemento
+    const suplemento = await Suplemento.create({
+      ...req.body,
+    });
+
+    existeContrato.isGotSupplement = true;
+    await existeContrato.save();
+    return res.status(201).json({
+      msg: `Suplemento(s) creado(s) correctamente para el contrato ${existeContrato.numeroDictamen}`,
+      suplemento,
     });
   } catch (error) {
-
-    console.error("Error al actualizar estados de contratos y notificaciones", error);
+    console.error(error);
+    return res.status(500).json({
+      msg: "Error al crear el suplemento",
+      error: error.message,
+    });
   }
-}
+};
+
+// Obtener todos los suplementos de un contrato
+const getSuplementosByContrato = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const contrato = await Contrato.findById(id);
+    const suplementos = await Suplemento.find({ contratoId: id }).sort({
+      createdAt: -1,
+    }); // Ordenar por fecha de creación descendente
+
+    if (suplementos.length === 0) {
+      contrato.isGotSupplement = false;
+      await contrato.save();
+      return res.status(200).json(suplementos);
+    }
+
+    return res.status(200).json(suplementos);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      msg: "Error al obtener los suplementos",
+      error: error.message,
+    });
+  }
+};
+
+// Actualizar suplemento
+const actualizarSuplemento = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const suplementoActualizado = await Suplemento.findByIdAndUpdate(
+      id,
+      req.body,
+      { new: true } // Retorna el documento actualizado
+    );
+
+    if (!suplementoActualizado) {
+      return res.status(404).json({
+        msg: `No se encontró el suplemento con id ${id}`,
+      });
+    }
+
+    return res.status(200).json({
+      msg: "Suplemento actualizado correctamente",
+      suplemento: suplementoActualizado,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      msg: "Error al actualizar el suplemento",
+      error: error.message,
+    });
+  }
+};
+
+// Eliminar suplemento
+const eliminarSuplemento = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const suplementoEliminado = await Suplemento.findByIdAndDelete(id);
+
+    if (!suplementoEliminado) {
+      return res.status(404).json({
+        msg: `No se encontró el suplemento con id ${id}`,
+      });
+    }
+
+    return res.status(200).json({
+      msg: "Suplemento eliminado correctamente",
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      msg: "Error al eliminar el suplemento",
+      error: error.message,
+    });
+  }
+};
+const useSupplement = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const supplementToUse = await Suplemento.findById(id);
+    const contract = await Contrato.findById(supplementToUse.contratoId);
+
+    if (!supplementToUse) {
+      return res.status(404).json({
+        msg: `No se encontró el suplemento con id ${id}`,
+      });
+    }
+
+    await contract.updateOne(
+      {
+        $push: {
+          // Usa $push para agregar un nuevo elemento al array
+          supplement: {
+            nombre: supplementToUse.nombre,
+            tiempo: supplementToUse.tiempo,
+            monto: supplementToUse.monto,
+            montoOriginal:supplementToUse.monto
+          },
+        },
+      },
+      { new: true }
+    );
+    if (supplementToUse.tiempo) {
+      contract.fechaVencimiento = calcularFechaFinSuplemento(
+        contract.fechaVencimiento,
+        supplementToUse.tiempo
+      );
+    }
+
+    await supplementToUse.deleteOne();
+    await contract.save();
+    const existNotification = await Notification.find({
+      contratoId: contract.id,
+    });
+    if (existNotification) {
+      if (
+        diferenciaEnDias(contract.fechaRecibido, contract.fechaVencimiento) > 30
+      )
+       await Notification.findByIdAndDelete(existNotification._id);
+    }
+    return res.status(200).json({
+      msg: `El suplemento se agregado correctamente al contrato ${contract.numeroDictamen}`,contract
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      msg: "Error al usar el suplemento",
+      error: error.message,
+    });
+  }
+};
 export {
   registrarContrato,
   obtenerRegistroContratos,
@@ -889,4 +1162,9 @@ export {
   eliminarNotificacionesArchivadas,
   marcarleidasAll,
   cambiarEstado,
+  crearSuplemento,
+  getSuplementosByContrato,
+  actualizarSuplemento,
+  eliminarSuplemento,
+  useSupplement,
 };
