@@ -1,3 +1,5 @@
+import { ipAddress, userAgent } from "../helpers/ipAndMetadata.js";
+import guardarTraza from "../helpers/saveTraza.js";
 import Contrato from "../models/Contratos.js";
 import Factura from "../models/Factura.js";
 import Notification from "../models/Notification.js";
@@ -82,6 +84,17 @@ const crearFactura = async (req, res) => {
       notificacion.valorDisponible = contrato.valorDisponible;
       await notificacion.save();
     }
+    // Para INSERTAR (crearFactura)
+    await guardarTraza({
+      entity_name: "Factura",
+      entity_id: nuevaFactura._id,
+      new_value: JSON.stringify(nuevaFactura.toObject()), // Convertir a JSON string
+      action_type: "INSERTAR",
+      changed_by: req.usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
 
     return res.status(200).json({ msg: "Factura creada exitosamente" });
   } catch (error) {
@@ -163,17 +176,42 @@ const visualizaFactura = async (req, res) => {
 };
 
 const modificarFactura = async (req, res) => {
-  const { numeroDictamen, newNumeroDictamen, monto } = req.body;
+  const { numeroDictamen, newNumeroDictamen, monto: montoReq } = req.body;
+  console.log("Iniciando modificación de factura:", numeroDictamen);
 
   try {
-    // Buscar factura y contrato asociado
-    const factura = await Factura.findOne(numeroDictamen);
-    if (!factura) return res.status(404).json({ msg: "Factura no encontrada" });
+    // Validar y parsear monto
+    let monto;
+    if (montoReq !== undefined) {
+      monto = parseInt(montoReq, 10);
+      if (isNaN(monto)) {
+        console.log("Monto inválido recibido:", montoReq);
+        return res
+          .status(400)
+          .json({ msg: "Monto debe ser un número entero válido" });
+      }
+    }
+    console.log("Monto parseado:", monto);
+
+    // Buscar documentos
+    const factura = await Factura.findOne({ numeroDictamen });
+    if (!factura) {
+      console.log("Factura no encontrada:", numeroDictamen);
+      return res.status(404).json({ msg: "Factura no encontrada" });
+    }
+    console.log("Factura encontrada:", factura);
 
     const contrato = await Contrato.findById(factura.contratoId);
+    if (!contrato) {
+      console.log("Contrato no encontrado para factura:", factura._id);
+      return res.status(404).json({ msg: "Contrato no encontrado" });
+    }
+    console.log("Contrato encontrado:", contrato._id);
+
     const notificaciones = await Notification.findOne({
       contratoId: contrato._id,
     });
+    console.log("Notificación encontrada:", notificaciones ? "Sí" : "No");
 
     // Validar nuevo número de dictamen
     if (newNumeroDictamen && newNumeroDictamen !== factura.numeroDictamen) {
@@ -181,49 +219,107 @@ const modificarFactura = async (req, res) => {
         numeroDictamen: newNumeroDictamen,
       });
       if (existeNew) {
+        console.log("Número de dictamen duplicado:", newNumeroDictamen);
         return res
           .status(400)
           .json({ msg: "El nuevo número de dictamen ya existe" });
       }
     }
 
-    // Variables clave
-    const oldMonto = factura.monto;
-    const oldMontoSuplement = factura.montoSuplement;
-    const diferencia = monto !== undefined ? monto - oldMonto : 0;
+    // Convertir valores antiguos
+    const oldMonto = parseInt(factura.monto, 10);
+    const oldMontoSuplement = parseInt(factura.montoSuplement, 10);
+    console.log(
+      "Valores antiguos - Monto:",
+      oldMonto,
+      "Suplemento:",
+      oldMontoSuplement
+    );
 
-    // Si hay cambio de monto, recalcular suplementos
+    // Procesar cambio de monto
     if (monto !== undefined && monto !== oldMonto) {
-      // Validar si el nuevo monto es cubrible
+      console.log("Iniciando cambio de monto...");
+
+      // 1. REINTEGRAR MONTO ANTERIOR (como en eliminar)
+      console.log("Reintegrando monto anterior...");
+
+      // Restaurar valor disponible
+      const montoValorDisponible = oldMonto - oldMontoSuplement;
+      contrato.valorDisponible += montoValorDisponible;
+      contrato.valorGastado -= oldMonto;
+
+      // Restaurar suplementos
+      let remainingSuplement = oldMontoSuplement;
+      console.log("Restaurando", remainingSuplement, "a suplementos");
+
+      // Restaurar en orden inverso al uso original
+      for (
+        let i = contrato.supplement.length - 1;
+        i >= 0 && remainingSuplement > 0;
+        i--
+      ) {
+        const suplemento = contrato.supplement[i];
+        const maxDevolucion = suplemento.montoOriginal - suplemento.monto;
+        const devolucion = Math.min(maxDevolucion, remainingSuplement);
+
+        suplemento.monto += devolucion;
+        remainingSuplement -= devolucion;
+        console.log(
+          `Devolución ${devolucion} al suplemento ${i}, restante: ${remainingSuplement}`
+        );
+      }
+
+      // Si queda remanente, crear nuevo suplemento
+      if (remainingSuplement > 0) {
+        console.log(
+          "Agregando nuevo suplemento por remanente:",
+          remainingSuplement
+        );
+        contrato.supplement.push({
+          monto: remainingSuplement,
+          montoOriginal: remainingSuplement, // Mantener registro del original
+        });
+      }
+
+      // 2. VALIDAR NUEVO MONTO
       const totalDisponible =
         contrato.valorDisponible +
-        contrato.supplement.reduce((sum, s) => sum + s.monto, 0) +
-        oldMonto;
+        contrato.supplement.reduce((sum, s) => sum + s.monto, 0);
+
+      console.log(
+        "Total disponible después de reintegración:",
+        totalDisponible
+      );
 
       if (monto > totalDisponible) {
+        console.log("Monto excede disponible:", monto, ">", totalDisponible);
         return res.status(400).json({
           msg: "El nuevo monto excede el presupuesto total disponible",
         });
       }
 
-      // Revertir el monto anterior
-      contrato.valorDisponible += oldMonto - oldMontoSuplement; // Devolver a valorDisponible
-      contrato.valorGastado -= oldMonto;
-
-      // Aplicar nuevo monto
+      // 3. APLICAR NUEVO MONTO (como en crear)
+      console.log("Aplicando nuevo monto...");
       let montoRestante = monto;
       let montoSuplementTotal = 0;
 
-      // Paso 1: Descontar del valorDisponible
+      // Paso 1: Descontar de valorDisponible
       const descuentoInicial = Math.min(
         contrato.valorDisponible,
         montoRestante
       );
       contrato.valorDisponible -= descuentoInicial;
       montoRestante -= descuentoInicial;
+      console.log(
+        "Descuento inicial:",
+        descuentoInicial,
+        "Restante:",
+        montoRestante
+      );
 
-      // Paso 2: Descontar de suplementos (en orden)
+      // Paso 2: Descontar de suplementos (en orden original)
       if (montoRestante > 0) {
+        console.log("Descontando de suplementos...");
         for (const suplemento of contrato.supplement) {
           if (montoRestante <= 0) break;
 
@@ -231,49 +327,86 @@ const modificarFactura = async (req, res) => {
           suplemento.monto -= descuentoSuplemento;
           montoRestante -= descuentoSuplemento;
           montoSuplementTotal += descuentoSuplemento;
+          console.log(
+            "Descontado de suplemento:",
+            descuentoSuplemento,
+            "Restante:",
+            montoRestante
+          );
         }
       }
 
-      // Actualizar valores del contrato y factura
+      // Actualizar valores
       contrato.valorGastado += monto;
       factura.monto = monto;
       factura.montoSuplement = montoSuplementTotal;
-    }
 
-    // Actualizar número de dictamen si es necesario
-    if (newNumeroDictamen) {
-      factura.numeroDictamen = newNumeroDictamen;
-      const facturaEnContrato = contrato.factura.find((f) =>
+      // Actualizar en array del contrato
+      const facturaContrato = contrato.factura.find((f) =>
         f._id.equals(factura._id)
       );
-      if (facturaEnContrato)
-        facturaEnContrato.numeroDictamen = newNumeroDictamen;
+      if (facturaContrato) {
+        facturaContrato.monto = monto;
+        facturaContrato.montoSuplement = montoSuplementTotal;
+        console.log("Actualizado en array de facturas del contrato");
+      }
+    }
+
+    // Actualizar número de dictamen
+    if (newNumeroDictamen) {
+      console.log("Actualizando número de dictamen...");
+      factura.numeroDictamen = newNumeroDictamen;
+      const facturaContrato = contrato.factura.find((f) =>
+        f._id.equals(factura._id)
+      );
+      if (facturaContrato) {
+        facturaContrato.numeroDictamen = newNumeroDictamen;
+        console.log("Número actualizado en array del contrato");
+      }
     }
 
     // Guardar cambios
+    console.log("Guardando cambios...");
     await contrato.save();
     await factura.save();
+    console.log("Cambios guardados exitosamente");
 
     // Actualizar notificación
     if (notificaciones) {
       notificaciones.valorDisponible = contrato.valorDisponible;
       await notificaciones.save();
+      console.log("Notificación actualizada");
     }
+    // Para ACTUALIZAR (modificarFactura)
+    await guardarTraza({
+      entity_name: "Factura",
+      entity_id: factura._id,
+      old_value: JSON.stringify({
+        // Convertir objeto a string
+        numeroDictamen: numeroDictamen,
+        monto: oldMonto,
+        montoSuplement: oldMontoSuplement,
+      }),
+      new_value: JSON.stringify(factura.toObject()), // Convertir documento a string
+      action_type: "ACTUALIZAR",
+      changed_by: req.usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
 
     return res.status(200).json({ msg: "Factura modificada exitosamente" });
   } catch (error) {
-    console.error("Error al modificar factura:", error);
+    console.error("Error en modificarFactura:", error);
     return res.status(500).json({ msg: "Error interno del servidor" });
   }
 };
-
 const eliminarFactura = async (req, res) => {
   try {
     const { numeroDictamen } = req.query;
     const { contratoId } = req.params;
-
     // Buscar factura y contrato
-    const factura = await Factura.findOne({ numeroDictamen, contratoId });
+    const factura = await Factura.findOne({ numeroDictamen });
     if (!factura) {
       return res.status(404).json({ msg: "Factura no encontrada" });
     }
@@ -311,7 +444,7 @@ const eliminarFactura = async (req, res) => {
     // Restaurar valorDisponible y actualizar valores
     contrato.valorDisponible += montoValorDisponible;
     contrato.valorGastado -= factura.monto;
-    contrato.factura.pull({ numeroDictamen: factura.numeroDictamen});
+    contrato.factura.pull({ numeroDictamen: factura.numeroDictamen });
 
     // Eliminar factura y guardar cambios
     await factura.deleteOne();
@@ -322,6 +455,17 @@ const eliminarFactura = async (req, res) => {
       notificaciones.valorDisponible = contrato.valorDisponible;
       await notificaciones.save();
     }
+    // Para ELIMINAR (eliminarFactura)
+    await guardarTraza({
+      entity_name: "Factura",
+      entity_id: factura._id,
+      old_value: JSON.stringify(factura.toObject()), // Convertir a string
+      action_type: "ELIMINAR",
+      changed_by: req.usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
 
     res.status(200).json({ msg: "Factura eliminada con éxito" });
   } catch (error) {

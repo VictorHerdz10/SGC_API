@@ -41,7 +41,6 @@ router.post(
 router.get("/notificacion-contratos",checkAuth,notificarcontratos);
 router.get("/marcar-leida/:id",checkAuth,marcarComoLeidas);
 router.get('/marcar-leidas-all',checkAuth,marcarleidasAll);
-router.post('/suplementos',checkAuth,marcarleidasAll);
 
 //Suplementos
 router.get('/suplementos/:id',checkAuth,getSuplementosByContrato);

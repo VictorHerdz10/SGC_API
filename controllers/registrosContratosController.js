@@ -1004,6 +1004,17 @@ const crearSuplemento = async (req, res) => {
 
     existeContrato.isGotSupplement = true;
     await existeContrato.save();
+    // Justo después de crear el suplemento
+    await guardarTraza({
+      entity_name: "Suplemento",
+      entity_id: suplemento._id,
+      new_value: JSON.stringify(suplemento.toObject()),
+      action_type: "INSERTAR",
+      changed_by: req.usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
     return res.status(201).json({
       msg: `Suplemento(s) creado(s) correctamente para el contrato ${existeContrato.numeroDictamen}`,
       suplemento,
@@ -1058,7 +1069,18 @@ const actualizarSuplemento = async (req, res) => {
         msg: `No se encontró el suplemento con id ${id}`,
       });
     }
-
+    // Después de obtener suplementoActualizado
+    await guardarTraza({
+      entity_name: "Suplemento",
+      entity_id: id,
+      old_value: JSON.stringify(req.body),
+      new_value: JSON.stringify(suplementoActualizado.toObject()),
+      action_type: "ACTUALIZAR",
+      changed_by: req.usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
     return res.status(200).json({
       msg: "Suplemento actualizado correctamente",
       suplemento: suplementoActualizado,
@@ -1084,7 +1106,17 @@ const eliminarSuplemento = async (req, res) => {
         msg: `No se encontró el suplemento con id ${id}`,
       });
     }
-
+    // Antes de eliminar el suplemento
+    await guardarTraza({
+      entity_name: "Suplemento",
+      entity_id: id,
+      old_value: JSON.stringify(suplementoEliminado.toObject()),
+      action_type: "ELIMINAR",
+      changed_by: req.usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
     return res.status(200).json({
       msg: "Suplemento eliminado correctamente",
     });
@@ -1116,7 +1148,7 @@ const useSupplement = async (req, res) => {
             nombre: supplementToUse.nombre,
             tiempo: supplementToUse.tiempo,
             monto: supplementToUse.monto,
-            montoOriginal:supplementToUse.monto
+            montoOriginal: supplementToUse.monto,
           },
         },
       },
@@ -1138,10 +1170,37 @@ const useSupplement = async (req, res) => {
       if (
         diferenciaEnDias(contract.fechaRecibido, contract.fechaVencimiento) > 30
       )
-       await Notification.findByIdAndDelete(existNotification._id);
+        await Notification.findByIdAndDelete(existNotification._id);
     }
+    // Después de actualizar el contrato y antes de eliminar el suplemento
+    await guardarTraza({
+      entity_name: "Suplemento",
+      entity_id: id,
+      old_value: JSON.stringify(supplementToUse.toObject()),
+      action_type: "USAR",
+      changed_by: req.usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
+
+    // Traza adicional para la modificación del contrato
+    await guardarTraza({
+      entity_name: "Contrato",
+      entity_id: contract._id,
+      new_value: JSON.stringify({
+        supplement: contract.supplement[contract.supplement.length - 1],
+        fechaVencimiento: contract.fechaVencimiento
+      }),
+      action_type: "ACTUALIZAR",
+      changed_by: req.usuario.nombre,
+      ip_address: ipAddress(req),
+      session_id: req.sessionID,
+      metadata: userAgent(req),
+    });
     return res.status(200).json({
-      msg: `El suplemento se agregado correctamente al contrato ${contract.numeroDictamen}`,contract
+      msg: `El suplemento se agregado correctamente al contrato ${contract.numeroDictamen}`,
+      contract,
     });
   } catch (error) {
     console.log(error);

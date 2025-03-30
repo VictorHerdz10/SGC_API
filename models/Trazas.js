@@ -10,12 +10,22 @@ const trazaSchema = new mongoose.Schema(
     },
     entity_id: {
       type: mongoose.Schema.Types.ObjectId,
-      required: false, 
+      required: false,
     },
     action_type: {
       type: String,
       required: true,
-      enum: ["INSERTAR", "ACTUALIZAR", "ELIMINAR", "INICIO_SESION", "LISTAR_DATOS","REGISTRO","RESTABLECER_CONTRASEÑA","BACKUP"], 
+      enum: [
+        "INSERTAR",
+        "ACTUALIZAR",
+        "ELIMINAR",
+        "INICIO_SESION",
+        "LISTAR_DATOS",
+        "REGISTRO",
+        "RESTABLECER_CONTRASEÑA",
+        "BACKUP",
+        "USAR",
+      ],
     },
     old_value: {
       type: String, // Almacenamos el valor antiguo como un string (podría ser un JSON stringificado)
@@ -56,8 +66,7 @@ const trazaSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-    versionKey:false
-    
+    versionKey: false,
   }
 );
 
