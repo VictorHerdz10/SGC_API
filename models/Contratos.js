@@ -8,6 +8,13 @@ const contratoSchema = new mongoose.Schema(
       modificadoPor: { type: String },
       fechaDeModificacion: { type: Date },
     },
+    especificos: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Contrato"
+    }],
+    isMarco: {
+      type: Boolean,
+    },
     tipoDeContrato: {
       type: String,
       required: true,

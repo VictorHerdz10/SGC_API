@@ -13,7 +13,8 @@ import {
   crearSuplemento,
   actualizarSuplemento,
   eliminarSuplemento,
-  useSupplement
+  useSupplement,
+  obtenerEspecificos
 } from "../controllers/registrosContratosController.js";
 import upload from "../middleware/uploadPdf.js";
 const router = express.Router();
@@ -48,6 +49,9 @@ router.get('/suplementos/usar/:id',checkAuth,useSupplement);
 router.post('/suplementos/:id',checkAuth, crearSuplemento);
 router.put('/suplementos/:id',checkAuth, actualizarSuplemento);
 router.delete('/suplementos/:id',checkAuth, eliminarSuplemento);
+
+// routes/contratos.js
+router.get('/marco/:id/especificos',checkAuth, obtenerEspecificos);
 
 
 export default router;

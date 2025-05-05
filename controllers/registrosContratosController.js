@@ -211,8 +211,73 @@ const registrarContrato = async (req, res) => {
       });
     }
 
-    // Guardar el contrato en la base de datos
-    const result = await newContrato.save();
+   // Guardar el contrato en la base de datos
+const result = await newContrato.save();
+
+// Verificar si es un contrato marco y agregar sus específicos existentes
+const tipoContrato = await TipoContrato.findOne({ nombre: result.tipoDeContrato });
+
+if (tipoContrato && tipoContrato.isMarco) {
+  try {
+    // Buscar todos los tipos de contrato específicos que tienen este marco como referencia
+    const tiposEspecificos = await TipoContrato.find({ marcoId: tipoContrato._id });
+    
+    if (tiposEspecificos.length > 0) {
+      // Buscar todos los contratos específicos de estos tipos
+      const contratosEspecificos = await Contrato.find({
+        tipoDeContrato: { $in: tiposEspecificos.map(t => t.nombre) }
+      });
+      
+      // Asignar los específicos al marco
+      result.especificos = contratosEspecificos.map(c => c._id);
+      
+      // Calcular los valores sumatorios
+      result.valorPrincipal = contratosEspecificos.reduce((sum, c) => sum + (c.valorPrincipal || 0), 0);
+      result.valorDisponible = contratosEspecificos.reduce((sum, c) => sum + (c.valorDisponible || 0), 0);
+      result.valorGastado = contratosEspecificos.reduce((sum, c) => sum + (c.valorGastado || 0), 0);
+      result.isMarco = true;
+      await result.save();
+    }
+  } catch (error) {
+    console.error('Error al actualizar contrato marco con específicos existentes:', error);
+  }
+} 
+else if (tipoContrato && tipoContrato.isEspecifico && tipoContrato.marcoId) {
+  try {
+    // Obtener el tipo de contrato marco
+    const tipoContratoMarco = await TipoContrato.findById(tipoContrato.marcoId);
+    
+    if (tipoContratoMarco) {
+      // Buscar contratos marco del mismo tipo
+      const contratosMarco = await Contrato.find({ 
+        tipoDeContrato: tipoContratoMarco.nombre 
+      });
+      
+      // Actualizar cada contrato marco encontrado
+      for (const contratoMarco of contratosMarco) {
+        // Inicializar el array si no existe
+        if (!contratoMarco.especificos) {
+          contratoMarco.especificos = [];
+        }
+        
+        // Agregar el nuevo contrato específico si no está ya incluido
+        if (!contratoMarco.especificos.includes(result._id)) {
+          contratoMarco.especificos.push(result._id);
+          
+          // Actualizar los valores monetarios del marco
+          contratoMarco.valorPrincipal = (contratoMarco.valorPrincipal || 0) + (result.valorPrincipal || 0);
+          contratoMarco.valorDisponible = (contratoMarco.valorDisponible || 0) + (result.valorDisponible || 0);
+          contratoMarco.valorGastado = (contratoMarco.valorGastado || 0) + (result.valorGastado || 0);
+          
+          await contratoMarco.save();
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error al relacionar contrato específico con marco:', error);
+  }
+}
+
     const newObject = {};
 
     if (result.tipoDeContrato)
@@ -1242,6 +1307,28 @@ const useSupplement = async (req, res) => {
     });
   }
 };
+const obtenerEspecificos = async (req, res) => {
+  try {
+    const contratoMarco = await Contrato.findById(req.params.id);
+    
+    if (!contratoMarco) {
+      return res.status(404).json({ message: 'Contrato marco no encontrado' });
+    }
+
+    const especificos = await Contrato.find({
+      _id: { $in: contratoMarco.especificos }
+    }).select(`
+      numeroDictamen tipoDeContrato objetoDelContrato entidad direccionEjecuta
+      valorPrincipal valorDisponible valorGastado estado info.fechaDeCreacion
+      vigencia fechaVencimiento isGotSupplement supplement factura
+      aprobadoPorCC firmado entregadoJuridica fechaRecibido
+    `);
+
+    res.json(especificos);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+}
 export {
   registrarContrato,
   obtenerRegistroContratos,
@@ -1258,4 +1345,5 @@ export {
   actualizarSuplemento,
   eliminarSuplemento,
   useSupplement,
+  obtenerEspecificos
 };
