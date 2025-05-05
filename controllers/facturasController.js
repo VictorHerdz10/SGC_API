@@ -82,6 +82,7 @@ const crearFactura = async (req, res) => {
     const notificacion = await Notification.findOne({ contratoId: _id });
     if (notificacion) {
       notificacion.valorDisponible = contrato.valorDisponible;
+      notificacion.supplement = contrato.supplement;
       await notificacion.save();
     }
     // Para INSERTAR (crearFactura)
@@ -374,6 +375,7 @@ const modificarFactura = async (req, res) => {
     // Actualizar notificación
     if (notificaciones) {
       notificaciones.valorDisponible = contrato.valorDisponible;
+      notificaciones.supplement = contrato.supplement;
       await notificaciones.save();
       console.log("Notificación actualizada");
     }

@@ -757,6 +757,7 @@ const notificarcontratos = async (req, res) => {
           fechaVencimiento: contrato.fechaVencimiento,
           entidad: contrato.entidad,
           valorDisponible: contrato.valorDisponible,
+          supplement:contrato.supplement
         });
         await notification.save();
         console.log(

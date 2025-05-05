@@ -41,6 +41,49 @@ const NotificationSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    supplement: [
+      {
+        nombre: {
+          type: String,
+          required: true,
+        },
+        montoOriginal:{
+          type: Number,
+          required: false,
+          default: null,
+          min: 0
+
+        },
+        monto: {
+          type: Number,
+          required: false,
+          default: null,
+          min: 0,
+        },
+        tiempo: {
+          years: {
+            type: Number,
+            required: false,
+            default: 0,
+            min: 0,
+          },
+          months: {
+            type: Number,
+            required: false,
+            default: 0,
+            min: 0,
+            max: 11,
+          },
+          days: {
+            type: Number,
+            required: false,
+            default: 0,
+            min: 0,
+            max: 30,
+          },
+        },
+      },
+    ],
   },
   { timestamps: false, versionKey: false }
 );
