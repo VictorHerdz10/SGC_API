@@ -17,6 +17,7 @@ import TipoContrato from "../models/TipoContrato.js";
 import Suplemento from "../models/Suplemento.js";
 import calcularFechaFinSuplemento from "../helpers/calcularFechaSuplemento.js";
 import diferenciaEnDias from "../helpers/diferenciaEnDias.js";
+import { validarFechaNoFutura } from "../helpers/validarFechaNoFutura.js";
 
 const registrarContrato = async (req, res) => {
   const { usuario } = req;
@@ -43,6 +44,7 @@ const registrarContrato = async (req, res) => {
     firmado,
     entregadoJuridica,
   } = req.body;
+
   try {
     const contrato = await Contrato.findOne({
       $and: [
@@ -92,6 +94,27 @@ const registrarContrato = async (req, res) => {
       }
     }
     let newContrato;
+
+    if (fechaRecibido && validarFechaNoFutura(fechaRecibido)) {
+      return res.status(400).json({
+        msg: `La fecha de recepción  no puede ser mayor a la actual`,
+      });
+    }
+    if (firmado && validarFechaNoFutura(firmado)) {
+      return res.status(400).json({
+        msg: `La fecha de firma  no puede ser mayor a la actual`,
+      });
+    }
+    if (entregadoJuridica && validarFechaNoFutura(entregadoJuridica)) {
+      return res.status(400).json({
+        msg: `La fecha de entrega jurídica  no puede ser mayor a la actual`,
+      });
+    }
+    if (aprobadoPorCC && validarFechaNoFutura(aprobadoPorCC)) {
+      return res.status(400).json({
+        msg: `La fecha de aprobación del CC  no puede ser mayor a la actual`,
+      });
+    }
     if (req.file) {
       try {
         const archivos = await dbx.filesListFolder({ path: "/Backups" });
@@ -134,7 +157,6 @@ const registrarContrato = async (req, res) => {
           .json({ msg: "El archivo ya tiene un vínculo compartido público" });
       }
       const link = getDirectLink(publicLink.result.url);
-
       newContrato = new Contrato({
         tipoDeContrato: tipoDeContrato || null,
         objetoDelContrato: objetoDelContrato || null,
@@ -310,16 +332,26 @@ const actualizarRegistroContrato = async (req, res) => {
         });
       }
     }
-    if (req.body.fechaRecibido) {
-      // Otra forma de obtener la fecha actual
-      const fechaparce = new Date().toISOString();
-      if (req.body.fechaRecibido > parcearDate3(new Date(fechaparce))) {
-        return res.status(400).json({
-          msg: "La fecha de recepción no puede ser  mayor a la fecha actual",
-        });
-      }
+    if (req.body.fechaRecibido && validarFechaNoFutura(req.body.fechaRecibido)) {
+      return res.status(400).json({
+        msg: `La fecha de recepción  no puede ser mayor a la actual`,
+      });
     }
-
+    if (req.body.firmado && validarFechaNoFutura(req.body.firmado)) {
+      return res.status(400).json({
+        msg: `La fecha de firma  no puede ser mayor a la actual`,
+      });
+    }
+    if (req.body.entregadoJuridica && validarFechaNoFutura(req.body.entregadoJuridica)) {
+      return res.status(400).json({
+        msg: `La fecha de entrega jurídica  no puede ser mayor a la actual`,
+      });
+    }
+    if (req.body.aprobadoPorCC && validarFechaNoFutura(req.body.aprobadoPorCC)) {
+      return res.status(400).json({
+        msg: `La fecha de aprobación del CC  no puede ser mayor a la actual`,
+      });
+    }
     if (!req.file) {
       contrato.info.modificadoPor = usuario.nombre;
       contrato.info.fechaDeModificacion = new Date().toISOString();
@@ -560,7 +592,6 @@ const eliminarRegistroContrato = async (req, res) => {
   const { id } = req.params;
   const { usuario } = req;
   const token = await Usuario.findOne({ tipo_usuario: "Admin_Gnl" });
-
   const dbx = await new Dropbox({
     accessToken: token.accessToken,
   });
@@ -1190,7 +1221,7 @@ const useSupplement = async (req, res) => {
       entity_id: contract._id,
       new_value: JSON.stringify({
         supplement: contract.supplement[contract.supplement.length - 1],
-        fechaVencimiento: contract.fechaVencimiento
+        fechaVencimiento: contract.fechaVencimiento,
       }),
       action_type: "ACTUALIZAR",
       changed_by: req.usuario.nombre,
