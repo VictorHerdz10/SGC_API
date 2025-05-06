@@ -194,7 +194,7 @@ const registrarContrato = async (req, res) => {
         valorPrincipal: valorPrincipal || null,
         valorDisponible: valorPrincipal || null, // Si valorPrincipal no existe, será null
         vigencia: vigencia || null,
-        fechaVencimiento: valorPrincipal
+        fechaVencimiento: vigencia
           ? calcularFechaFin(fechaRecibido, vigencia)
           : null,
         estado: estado || null,
