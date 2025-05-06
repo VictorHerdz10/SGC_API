@@ -1125,11 +1125,9 @@ const cambiarEstado = async () => {
   }
 };
 
-//Crear suplemento
 const crearSuplemento = async (req, res) => {
   try {
     const { id } = req.params;
-    // Verificar si el contrato existe
     const existeContrato = await Contrato.findById(id);
     if (!existeContrato) {
       return res.status(404).json({
@@ -1137,14 +1135,18 @@ const crearSuplemento = async (req, res) => {
       });
     }
 
-    // Crear el suplemento
+    // Determinar si es global (automático si el contrato es marco)
+    const isGlobal = existeContrato.isMarco;
+
     const suplemento = await Suplemento.create({
       ...req.body,
+      isGlobal,
+      montoOriginal: req.body.monto // Guardar monto original
     });
 
     existeContrato.isGotSupplement = true;
     await existeContrato.save();
-    // Justo después de crear el suplemento
+
     await guardarTraza({
       entity_name: "Suplemento",
       entity_id: suplemento._id,
@@ -1155,8 +1157,9 @@ const crearSuplemento = async (req, res) => {
       session_id: req.sessionID,
       metadata: userAgent(req),
     });
+
     return res.status(201).json({
-      msg: `Suplemento(s) creado(s) correctamente para el contrato ${existeContrato.numeroDictamen}`,
+      msg: `Suplemento ${isGlobal ? 'global' : 'local'} creado correctamente para el contrato ${existeContrato.numeroDictamen}`,
       suplemento,
     });
   } catch (error) {
@@ -1272,47 +1275,125 @@ const useSupplement = async (req, res) => {
   const { id } = req.params;
   try {
     const supplementToUse = await Suplemento.findById(id);
-    const contract = await Contrato.findById(supplementToUse.contratoId);
-
     if (!supplementToUse) {
       return res.status(404).json({
         msg: `No se encontró el suplemento con id ${id}`,
       });
     }
 
-    await contract.updateOne(
-      {
-        $push: {
-          // Usa $push para agregar un nuevo elemento al array
-          supplement: {
-            nombre: supplementToUse.nombre,
-            tiempo: supplementToUse.tiempo,
-            monto: supplementToUse.monto,
-            montoOriginal: supplementToUse.monto,
-          },
-        },
-      },
-      { new: true }
-    );
-    if (supplementToUse.tiempo) {
-      contract.fechaVencimiento = calcularFechaFinSuplemento(
-        contract.fechaVencimiento,
-        supplementToUse.tiempo
-      );
+    const contratoOrigen = await Contrato.findById(supplementToUse.contratoId);
+    if (!contratoOrigen) {
+      return res.status(404).json({
+        msg: `No se encontró el contrato asociado al suplemento`,
+      });
     }
 
-    await supplementToUse.deleteOne();
-    await contract.save();
-    const existNotification = await Notification.find({
-      contratoId: contract.id,
-    });
-    if (existNotification) {
-      if (
-        diferenciaEnDias(contract.fechaRecibido, contract.fechaVencimiento) > 30
-      )
-        await Notification.findByIdAndDelete(existNotification._id);
+    // Preparar datos del suplemento
+    const supplementData = {
+      nombre: supplementToUse.nombre,
+      tiempo: supplementToUse.tiempo,
+      monto: supplementToUse.monto,
+      montoOriginal: supplementToUse.monto,
+      isGlobal: supplementToUse.isGlobal,
+      supplementId: supplementToUse._id
+    };
+
+    // Si es un suplemento GLOBAL (de contrato marco)
+    if (supplementToUse.isGlobal) {
+      // 1. Obtener todos los contratos específicos asociados
+      const contratosEspecificos = await Contrato.find({
+        _id: { $in: contratoOrigen.especificos }
+      });
+
+      // 2. Si es de TIEMPO: aplicar a todos los específicos
+      if (supplementToUse.tiempo && 
+          (supplementToUse.tiempo.days > 0 || 
+           supplementToUse.tiempo.months > 0 || 
+           supplementToUse.tiempo.years > 0)) {
+        
+        const bulkOps = contratosEspecificos.map(contrato => ({
+          updateOne: {
+            filter: { _id: contrato._id },
+            update: {
+              $push: { supplement: supplementData },
+              $set: { 
+                fechaVencimiento: calcularFechaFinSuplemento(
+                  contrato.fechaVencimiento, 
+                  supplementToUse.tiempo
+                )
+              }
+            }
+          }
+        }));
+
+        await Contrato.bulkWrite(bulkOps);
+
+        // Registrar uso en el suplemento
+        supplementToUse.usedBy = contratosEspecificos.map(contrato => ({
+          contratoId: contrato._id,
+          tiempoUsado: supplementToUse.tiempo
+        }));
+        await supplementToUse.save();
+
+      } 
+      // 3. Si es de MONTO: solo registrar que está disponible
+      else if (supplementToUse.monto > 0) {
+        // No se aplica directamente, queda disponible para uso individual
+        // Solo guardamos el suplemento en el contrato marco
+        await contratoOrigen.updateOne(
+          { $push: { supplement: supplementData } },
+          { new: true }
+        );
+      }
+
+    } 
+    // Si es un suplemento LOCAL (de contrato específico)
+    else {
+      // Aplicar directamente al contrato
+      await contratoOrigen.updateOne(
+        { $push: { supplement: supplementData } },
+        { new: true }
+      );
+
+      // Si es de tiempo, actualizar fecha de vencimiento
+      if (supplementToUse.tiempo) {
+        contratoOrigen.fechaVencimiento = calcularFechaFinSuplemento(
+          contratoOrigen.fechaVencimiento,
+          supplementToUse.tiempo
+        );
+        await contratoOrigen.save();
+      }
+
+      // Eliminar el suplemento local después de usarlo
+      await supplementToUse.deleteOne();
     }
-    // Después de actualizar el contrato y antes de eliminar el suplemento
+
+    // Manejo de notificaciones para contratos específicos
+    if (supplementToUse.isGlobal && supplementToUse.tiempo) {
+      // Actualizar notificaciones para todos los específicos
+      const contratosEspecificosIds = contratoOrigen.especificos;
+      await Notification.deleteMany({
+        contratoId: { $in: contratosEspecificosIds },
+        $expr: {
+          $gt: [
+            { $subtract: ["$fechaVencimiento", "$fechaRecibido"] },
+            30 * 24 * 60 * 60 * 1000 // 30 días en milisegundos
+          ]
+        }
+      });
+    } else {
+      // Manejo normal para contratos específicos
+      const existNotification = await Notification.findOne({
+        contratoId: contratoOrigen._id,
+      });
+      if (existNotification) {
+        if (diferenciaEnDias(contratoOrigen.fechaRecibido, contratoOrigen.fechaVencimiento) > 30) {
+          await Notification.findByIdAndDelete(existNotification._id);
+        }
+      }
+    }
+
+    // Registro de trazas
     await guardarTraza({
       entity_name: "Suplemento",
       entity_id: id,
@@ -1323,14 +1404,14 @@ const useSupplement = async (req, res) => {
       session_id: req.sessionID,
       metadata: userAgent(req),
     });
-
+    
     // Traza adicional para la modificación del contrato
     await guardarTraza({
       entity_name: "Contrato",
-      entity_id: contract._id,
+      entity_id: contratoOrigen._id,
       new_value: JSON.stringify({
-        supplement: contract.supplement[contract.supplement.length - 1],
-        fechaVencimiento: contract.fechaVencimiento,
+        supplement: contratoOrigen.supplement[contract.supplement.length - 1],
+        fechaVencimiento: contratoOrigen.fechaVencimiento,
       }),
       action_type: "ACTUALIZAR",
       changed_by: req.usuario.nombre,
@@ -1338,18 +1419,24 @@ const useSupplement = async (req, res) => {
       session_id: req.sessionID,
       metadata: userAgent(req),
     });
+
     return res.status(200).json({
-      msg: `El suplemento se agregado correctamente al contrato ${contract.numeroDictamen}`,
-      contract,
+      msg: supplementToUse.isGlobal 
+        ? supplementToUse.tiempo 
+          ? "Suplemento global de tiempo aplicado a todos los contratos asociados" 
+          : "Suplemento global de monto disponible para uso"
+        : "Suplemento local aplicado correctamente",
+      contract: contratoOrigen,
     });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return res.status(500).json({
       msg: "Error al usar el suplemento",
       error: error.message,
     });
   }
 };
+
 const obtenerEspecificos = async (req, res) => {
   try {
     const contratoMarco = await Contrato.findById(req.params.id);

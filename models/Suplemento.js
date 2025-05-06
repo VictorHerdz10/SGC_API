@@ -1,13 +1,18 @@
-// models/SupplementModel.js
 import mongoose from "mongoose";
 
 const SupplementSchema = new mongoose.Schema(
   {
-    nombre : {
-      type :String,
+    nombre: {
+      type: String,
       required: true
     },
     monto: {
+      type: Number,
+      required: false,
+      default: null,
+      min: 0,
+    },
+    montoOriginal: {  // Nuevo campo para guardar el monto inicial
       type: Number,
       required: false,
       default: null,
@@ -35,15 +40,30 @@ const SupplementSchema = new mongoose.Schema(
         max: 30,
       },
     },
+    isGlobal: {  // Nuevo campo para identificar suplementos globales
+      type: Boolean,
+      default: false
+    },
+    usedBy: [{  // Para rastrear qué contratos específicos usaron este suplemento
+      contratoId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Contrato"
+      },
+      montoUsado: Number,
+      fechaUso: {
+        type: Date,
+        default: Date.now
+      }
+    }],
+    contratoId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Contrato",
+      required: true,
+    },
     createdAt: {
       type: Date,
       default: Date.now,
       immutable: true,
-    },
-    contratoId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "TipoContrato",
-      required: true,
     },
   },
   {
@@ -51,6 +71,7 @@ const SupplementSchema = new mongoose.Schema(
     versionKey: false,
   }
 );
+
 const Suplemento = mongoose.model("Suplemento", SupplementSchema);
 
 export default Suplemento;

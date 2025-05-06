@@ -8,10 +8,12 @@ const contratoSchema = new mongoose.Schema(
       modificadoPor: { type: String },
       fechaDeModificacion: { type: Date },
     },
-    especificos: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Contrato"
-    }],
+    especificos: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Contrato",
+      },
+    ],
     isMarco: {
       type: Boolean,
     },
@@ -90,12 +92,11 @@ const contratoSchema = new mongoose.Schema(
           type: String,
           required: true,
         },
-        montoOriginal:{
+        montoOriginal: {
           type: Number,
           required: false,
           default: null,
-          min: 0
-
+          min: 0,
         },
         monto: {
           type: Number,
@@ -125,6 +126,17 @@ const contratoSchema = new mongoose.Schema(
             max: 30,
           },
         },
+        isGlobal: { type: Boolean, default: false }, 
+        usedBy: [
+          {
+            contratoId: {
+              type: mongoose.Schema.Types.ObjectId,
+              ref: "Contrato",
+            },
+            montoUsado: { type: Number },
+            fechaUso: { type: Date, default: Date.now },
+          },
+        ],
       },
     ],
   },
