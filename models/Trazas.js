@@ -25,6 +25,7 @@ const trazaSchema = new mongoose.Schema(
         "RESTABLECER_CONTRASEÑA",
         "BACKUP",
         "USAR",
+        "RESTORE"
       ],
     },
     old_value: {
