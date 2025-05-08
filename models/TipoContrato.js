@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 
-// Esquema para los tipos de contrato
 const schema = new mongoose.Schema(
   {
     nombre: {
