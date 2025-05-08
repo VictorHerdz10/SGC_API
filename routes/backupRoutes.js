@@ -8,6 +8,7 @@ import {
     crearBackupLocal,
     restaurarBackupLocal
 } from "../controllers/backupController.js";
+import { upload } from "../middleware/restaurarBackupLocal.js";
 
 const router = express.Router();
 
@@ -17,7 +18,7 @@ router.get("/obtener-datos-backup",checkAuth,obtenerDatos);
 router.post("/restore-db",checkAuth,restablecerDataBase);
 router.delete("/eliminar-backup/:id",checkAuth,eliminarBackup);
 router.get("/crear-backup-local", checkAuth, crearBackupLocal); 
-router.post("/restaurar-backup-local", checkAuth, restaurarBackupLocal);
+router.post("/restaurar-backup-local", checkAuth, upload.single('backupFile'), restaurarBackupLocal);
 
   
 export default router;
