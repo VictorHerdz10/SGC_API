@@ -8,7 +8,6 @@ import registrosContratosRoutes from "./routes/registrosContratosRoutes.js";
 import facturasRoutes from "./routes/facturasRoutes.js";
 import entidadRoutes from "./routes/entidadRoutes.js";
 import direccionRoutes from "./routes/direccionRoutes.js";
-import bodyParser from "body-parser";
 import helmet from "helmet";
 import cron from 'node-cron';
 import dailyTask from "./config/config-con.js";
@@ -21,25 +20,41 @@ import tipoContratoRoutes from './routes/tipoContratoRoutes.js'
 //Creando instancia de express
 const app = express();
 app.use(express.json());
-app.use(cookieParser())
+app.use(cookieParser());
+
 app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:"]
+    }
+  },
   frameguard: {
     action: 'sameorigin'
   }
 }));
+
+// Configuración de sesión (mejorada)
 app.use(
   session({
-    secret: "tu_secreto",
+    secret: process.env.SESSION_SECRET || "tu_secreto_seguro_aqui",
     resave: false,
-    saveUninitialized: true,
-    cookie: { secure: false }, // Cambia a true si usas HTTPS
+    saveUninitialized: false,
+    cookie: { 
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000, // 1 día
+      sameSite: 'strict'
+    }
   })
 );
 
 dotenv.config();
-// Middleware para parsear form-data
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ limit: '100mb', extended: true }));
   // Arrancar la tarea cron al iniciar la aplicación
 cron.schedule(dailyTask.schedule, dailyTask.task);
 
