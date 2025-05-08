@@ -6,6 +6,10 @@ import restoreDatabaseFromBackup from "../helpers/restoreData.js";
 import mongoose from "mongoose";
 import guardarTraza from "../helpers/saveTraza.js";
 import { ipAddress, userAgent } from "../helpers/ipAndMetadata.js";
+import fs from 'fs';
+import path from 'path';
+import JSZip from 'jszip'; 
+
 
 const respaldarDatos = async (req, res) => {
   const { usuario } = req;
@@ -174,54 +178,123 @@ const crearBackupLocal = async (req, res) => {
     return res.status(500).json({ msg: "Error al crear backup local" });
   }
 };
+
 const restaurarBackupLocal = async (req, res) => {
-  console.log("Restaurando base de datos local...");
   const { usuario } = req;
   if (usuario.tipo_usuario !== "Admin_Gnl") {
-    return res
-      .status(403)
-      .json({ msg: "No tienes permisos para realizar esta acción" });
-  }
-
-  const backupData = req.body;
-  if (!backupData) {
-    return res
-      .status(400)
-      .json({ msg: "No se proporcionaron datos de respaldo" });
+    if (req.file) fs.unlinkSync(req.file.path);
+    return res.status(403).json({ msg: "No tienes permisos para realizar esta acción" });
   }
 
   try {
-    for (const collectionName in backupData) {
-      const collection = mongoose.connection.db.collection(collectionName);
-      await collection.deleteMany({}); // Clear existing data
+    if (!req.file) {
+      return res.status(400).json({ msg: "No se ha subido ningún archivo" });
+    }
 
-      const documents = backupData[collectionName].map((doc) => {
-        if (doc._id) {
-          doc._id = new mongoose.Types.ObjectId(doc._id);
+    const filePath = path.resolve(req.file.path);
+    
+    if (!fs.existsSync(filePath)) {
+      return res.status(400).json({ msg: "El archivo subido no existe" });
+    }
+
+    // Función recursiva para convertir ObjectIds en todo el documento
+    const convertObjectIds = (obj, collectionName) => {
+      if (Array.isArray(obj)) {
+        // Caso especial para el array 'especificos' en la colección Contrato
+        if (collectionName === 'contratos' && obj.length > 0 && typeof obj[0] === 'string') {
+          return obj.map(id => {
+            if (mongoose.Types.ObjectId.isValid(id) && id.length === 24 && /^[0-9a-fA-F]+$/.test(id)) {
+              return new mongoose.Types.ObjectId(id);
+            }
+            return id;
+          });
         }
-        return doc;
-      });
+        return obj.map(item => convertObjectIds(item, collectionName));
+      } else if (obj !== null && typeof obj === 'object') {
+        return Object.fromEntries(
+          Object.entries(obj).map(([key, value]) => {
+            // Convertir strings que coincidan con formato ObjectId
+            if (typeof value === 'string' && mongoose.Types.ObjectId.isValid(value)) {
+              if (value.length === 24 && /^[0-9a-fA-F]+$/.test(value)) {
+                try {
+                  return [key, new mongoose.Types.ObjectId(value)];
+                } catch (error) {
+                  console.warn(`ID inválido en campo ${key}: ${value}`);
+                  return [key, value];
+                }
+              }
+            } else if (typeof value === 'object' && value !== null) {
+              return [key, convertObjectIds(value, collectionName)];
+            }
+            return [key, value];
+          })
+        );
+      }
+      return obj;
+    };
+
+    // Leer el archivo ZIP
+    const fileContent = fs.readFileSync(filePath);
+    const zip = new JSZip();
+    const zipContents = await zip.loadAsync(fileContent);
+
+    // Procesar cada archivo en el ZIP
+    const fileNames = Object.keys(zipContents.files);
+    
+    for (const fileName of fileNames) {
+      if (!fileName.endsWith('.json')) continue;
+      
+      const collectionName = fileName.replace('.json', '');
+      
+      const fileData = await zipContents.files[fileName].async('text');
+      let documents = JSON.parse(fileData);
+
+      
+      documents = documents.map(doc => convertObjectIds(doc, collectionName));
+
+      const collection = mongoose.connection.db.collection(collectionName);
+      
+      
+      await collection.deleteMany({});
+      
       if (documents.length > 0) {
-        await collection.insertMany(documents); // Insert backup data
+        
+        const batchSize = 100;
+        for (let i = 0; i < documents.length; i += batchSize) {
+          const batch = documents.slice(i, i + batchSize);
+          try {
+            await collection.insertMany(batch, { ordered: false });
+          } catch (insertError) {
+            
+          }
+        }
       }
     }
+
+    fs.unlinkSync(filePath);
+
+    // Registrar traza
     await guardarTraza({
       entity_name: "Backups",
-      action_type: "BACKUP",
+      action_type: "RESTORE",
       changed_by: usuario.nombre,
       ip_address: ipAddress(req),
       session_id: req.sessionID,
       metadata: userAgent(req),
     });
-    return res
-      .status(200)
-      .json({ msg: "Base de datos restaurada exitosamente" });
+
+    return res.status(200).json({ msg: "Restauración completada exitosamente" });
   } catch (error) {
-    console.error("Error al restaurar la base de datos:", error);
-    return res.status(500).json({ msg: "Error al restaurar la base de datos" });
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    console.error("Error en restauración:", error);
+    return res.status(500).json({ 
+      msg: "Error en restauración",
+      error: error.message 
+    });
   }
 };
-
 export {
   respaldarDatos,
   obtenerDatos,
