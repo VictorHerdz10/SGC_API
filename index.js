@@ -50,19 +50,9 @@ connectDB()
   .catch((err) =>
     console.error("No se pudo conectar a la base de datos:", err)
   );
- const dominiosPermitidos = [process.env.FRONTEND_URL];
-  const corsOptions = {
-    origin: function(origin, callback){
-      if(dominiosPermitidos.indexOf(origin) !== -1){
-        //El origen del Requet esta permitido
-        callback(null,true);
-    }else{
-      callback(new Error('No permitido por CORS'))
-    }
-  }
-  }
 
-app.use(cors("https://registroscontratosdgs.netlify.app"));
+
+app.use(cors("*"));
 app.use("/api/usuario", usuarioRoutes);
 app.use("/api/contratos", registrosContratosRoutes);
 app.use("/api/facturas", facturasRoutes);
