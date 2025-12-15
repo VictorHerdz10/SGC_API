@@ -52,7 +52,18 @@ connectDB()
   );
 
 
-app.use(cors("*"));
+const corsOptions = {
+  origin: [
+    'https://registroscontratosdgs.netlify.app',
+    'http://localhost:3000', // Para desarrollo local
+    // Agrega otros dominios si los tienes
+  ],
+  credentials: true, // Si usas cookies/sesiones
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+};
+
+app.use(cors(corsOptions));
 app.use("/api/usuario", usuarioRoutes);
 app.use("/api/contratos", registrosContratosRoutes);
 app.use("/api/facturas", facturasRoutes);
