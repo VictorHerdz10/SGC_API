@@ -53,17 +53,22 @@ connectDB()
 
 
 const corsOptions = {
-  origin: [
-    'https://registroscontratosdgs.netlify.app',
-    'http://localhost:3000', // Para desarrollo local
-    // Agrega otros dominios si los tienes
-  ],
-  credentials: true, // Si usas cookies/sesiones
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  origin: 'https://registroscontratosdgs.netlify.app',
+  credentials: true,
+  optionsSuccessStatus: 200
 };
 
 app.use(cors(corsOptions));
+
+// Manejar preflight requests para todas las rutas
+app.options('*', cors(corsOptions));
+
+// Asegurar que los encabezados estén presentes
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'https://registroscontratosdgs.netlify.app');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  next();
+});
 app.use("/api/usuario", usuarioRoutes);
 app.use("/api/contratos", registrosContratosRoutes);
 app.use("/api/facturas", facturasRoutes);
